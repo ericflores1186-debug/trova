@@ -56,8 +56,40 @@ async def handle_app_error(_: Request, exc: AppError) -> JSONResponse:
 
 
 @app.get("/health")
-async def health() -> dict[str, str]:
-    return {"status": "ok", "extraction_model": config.EXTRACTION_MODEL}
+async def health() -> dict:
+    """Liveness, plus enough proxy detail to diagnose a bad deploy.
+
+    Credentials pasted into a host's env UI pick up invisible whitespace, and
+    the resulting failure is indistinguishable from a wrong password. Reports
+    lengths and a short prefix -- never the secret itself.
+    """
+    from app.services.transcript import _build_proxy_config
+
+    def describe(value: str) -> dict:
+        return {
+            "len": len(value),
+            "preview": (value[:4] + "..." if len(value) > 4 else value) if value else None,
+            "has_whitespace": value != value.strip(),
+        }
+
+    proxy: dict = {"configured": config.HAS_PROXY}
+    if config.HAS_PROXY:
+        if config.WEBSHARE_PROXY_USERNAME:
+            proxy["kind"] = "webshare"
+            proxy["username"] = describe(config.WEBSHARE_PROXY_USERNAME)
+            proxy["password"] = describe(config.WEBSHARE_PROXY_PASSWORD)
+        else:
+            proxy["kind"] = "generic"
+            proxy["http_url"] = describe(config.GENERIC_PROXY_HTTP_URL)
+        built = _build_proxy_config()
+        url = getattr(built, "url", "") or getattr(built, "http_url", "")
+        proxy["endpoint"] = url.split("@", 1)[1] if "@" in url else None
+
+    return {
+        "status": "ok",
+        "extraction_model": config.EXTRACTION_MODEL,
+        "proxy": proxy,
+    }
 
 
 @app.post(

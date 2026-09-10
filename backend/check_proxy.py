@@ -91,6 +91,19 @@ def check_local() -> None:
     if config.HAS_PROXY:
         kind = "Webshare" if config.WEBSHARE_PROXY_USERNAME else "generic"
         print(f"{OK}Proxy configured ({kind})")
+
+        # Show what actually gets sent, with the password masked. Whitespace
+        # and stray characters in an env var are invisible until you see the
+        # assembled URL.
+        proxy = _build_proxy_config()
+        url = getattr(proxy, "url", None) or getattr(proxy, "http_url", "")
+        if url and "@" in url:
+            creds, host = url.split("@", 1)
+            scheme, _, userpass = creds.partition("://")
+            user, _, pwd = userpass.partition(":")
+            print(f"        connecting as : {user!r}")
+            print(f"        password      : {len(pwd)} chars")
+            print(f"        endpoint      : {host}")
     else:
         print(f"{WARN}No proxy configured -- testing your own connection")
         print("        Your home IP is not blocked, so a pass here does NOT")
