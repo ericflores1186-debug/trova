@@ -1,0 +1,70 @@
+@import "tailwindcss";
+
+/* ---------------------------------------------------------------------------
+   Trova design tokens.
+
+   Warm editorial palette -- paper, ink and clay -- rather than default SaaS
+   blue. Every token below generates Tailwind utilities: `bg-paper`,
+   `text-ink`, `border-sand`, `font-display`, and so on.
+   --------------------------------------------------------------------------- */
+@theme {
+  --color-paper: #fbf8f3;
+  --color-paper-raised: #ffffff;
+  --color-sand: #ece3d6;
+  --color-sand-deep: #ddd0bd;
+
+  --color-ink: #191512;
+  --color-ink-soft: #5c524a;
+  --color-ink-faint: #8d8177;
+
+  --color-clay: #c25e3a;
+  --color-clay-deep: #a44a2a;
+  --color-clay-wash: #f7ece5;
+
+  --color-moss: #3f5a45;
+
+  --font-display: var(--font-display), ui-serif, Georgia, serif;
+
+  --radius-card: 1rem;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  background-color: var(--color-paper);
+  color: var(--color-ink);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Subtle paper grain behind the hero, kept as CSS so it costs no requests. */
+.grain {
+  background-image: radial-gradient(
+    circle at 1px 1px,
+    rgb(25 21 18 / 0.045) 1px,
+    transparent 0
+  );
+  background-size: 22px 22px;
+}
+
+@keyframes trova-rise {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.rise {
+  animation: trova-rise 0.45s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rise {
+    animation: none;
+  }
+}

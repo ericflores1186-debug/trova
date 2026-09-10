@@ -1,0 +1,31 @@
+# Render blueprint. Push this repo to GitHub, then in Render:
+#   New -> Blueprint -> pick the repo. It reads this file.
+#
+# Secrets are marked sync:false, so Render prompts for them instead of
+# reading them from the repo. Never commit real keys.
+services:
+  - type: web
+    name: trova-api
+    runtime: docker
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    plan: free
+    healthCheckPath: /health
+    envVars:
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SECRET_KEY
+        sync: false
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: TRAVELPAYOUTS_API_TOKEN
+        sync: false
+      - key: TRAVELPAYOUTS_MARKER
+        sync: false
+      - key: EXTRACTION_MODEL
+        value: claude-haiku-4-5
+      - key: TRAVELPAYOUTS_MOCK
+        value: "false"
+      # Must list your real Vercel domain, or the browser blocks every call.
+      - key: CORS_ORIGINS
+        sync: false

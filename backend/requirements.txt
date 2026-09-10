@@ -1,0 +1,29 @@
+# Lower bounds rather than exact pins, so pip resolves versions with prebuilt
+# wheels for whichever Python you run (3.10+). Freeze with
+# `pip freeze > requirements.lock.txt` once you have a combination you like.
+
+# --- Web framework ---
+fastapi>=0.115,<1
+uvicorn[standard]>=0.34,<1
+
+# --- Data / validation ---
+# 2.12+ is the first line with wheels for Python 3.14; older pins force a
+# from-source Rust build of pydantic-core.
+pydantic>=2.12,<3
+
+# --- Database ---
+supabase>=2.15,<3
+
+# --- AI extraction ---
+anthropic>=1.0,<2
+
+# --- YouTube transcripts ---
+# 0.6.x caps out at Python <3.14, so 1.x is required on modern interpreters.
+# 1.x replaced the `YouTubeTranscriptApi.get_transcript()` classmethod with an
+# instance-based `.fetch()`; app/services/transcript.py handles both, so this
+# also works if you pin back to 0.6.2 on Python <=3.13.
+youtube-transcript-api>=1.2.3,<2
+
+# --- HTTP + config ---
+requests>=2.32,<3
+python-dotenv>=1.0,<2

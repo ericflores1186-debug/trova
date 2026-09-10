@@ -1,0 +1,7 @@
+.env
+.venv/
+__pycache__/
+*.py[cod]
+check_setup.py
+schema*.sql
+README.md
