@@ -15,6 +15,7 @@ import anthropic
 from app import config
 from app.errors import ExtractionFailed
 from app.models.schemas import Flight, Hotel, TravelExtraction
+from app.services import geo
 
 logger = logging.getLogger(__name__)
 
@@ -227,8 +228,10 @@ def _dedupe_flights(flights: list[Flight]) -> list[Flight]:
         if not city:
             continue
         key = city.casefold()
-        if key in countries:
-            logger.info("Dropping %r as a destination: it is a country, not a city", city)
+        if key in countries or geo.is_not_a_city(city):
+            logger.info(
+                "Dropping %r as a destination: not a bookable city", city
+            )
             continue
         candidate = Flight(
             destination_city=city,
