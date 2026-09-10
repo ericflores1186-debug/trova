@@ -136,6 +136,54 @@ message says so explicitly, rather than blaming the video's captions.
 
 ---
 
+## 3.6 Keep the free tier awake
+
+Render's free tier spins a service down after 15 minutes idle, and the next
+request then waits up to 50 seconds. Worth knowing what that actually affects:
+
+- **Storefront pages are unaffected.** They are served by Vercel and read
+  Supabase directly, so a visitor clicking a creator's link gets an instant
+  page and instant booking links whether Render is asleep or not.
+- **Only storefront *creation* hits Render** -- the creator, once per video.
+
+The free tier includes 750 instance-hours a month and a month is about 730
+hours, so one service can stay up continuously within the allowance. It only
+sleeps because nothing is hitting it. Fix that with a free uptime monitor:
+
+1. Sign up at [cron-job.org](https://cron-job.org) or
+   [UptimeRobot](https://uptimerobot.com)
+2. Add a monitor for `https://trova-api.onrender.com/health`
+3. Interval: **10 minutes**
+
+You get downtime alerts as a bonus. Upgrade to a paid instance when several
+creators use it at once, when you are demoing live and cannot risk a cold
+start, or when long videos start timing out -- not before.
+
+---
+
+## 3.7 Rotating a leaked credential
+
+Secrets end up in screenshots, logs and chat windows. When one does, rotate it
+rather than hoping. None of these require downtime.
+
+| Credential | Where to rotate | Then update |
+| --- | --- | --- |
+| `TRAVELPAYOUTS_API_TOKEN` | Travelpayouts -> Profile -> API token | Render |
+| `WEBSHARE_PROXY_PASSWORD` | Webshare -> Proxy -> Settings | Render |
+| `ANTHROPIC_API_KEY` | console.anthropic.com -> API keys | Render + `backend/.env` |
+| `SUPABASE_SECRET_KEY` | Supabase -> Settings -> API Keys | Render + `backend/.env` |
+
+Create the new value first, update Render, deploy, confirm it works, and only
+then delete the old one -- deleting first means downtime while you scramble.
+
+The Supabase **publishable** key and the project URL are designed to be public
+and need no rotation; Row Level Security is what protects that data.
+
+When checking a value in a hosting dashboard, reveal it with the eye icon but
+take screenshots with it masked.
+
+---
+
 ## 4. Verify the deploy
 
 - [ ] `https://<render-url>/health` returns ok
@@ -144,6 +192,8 @@ message says so explicitly, rather than blaming the video's captions.
 - [ ] The storefront URL opens in a **private window** (proves the publishable
       key and RLS work for a stranger, not just for you)
 - [ ] A "Book now" link opens with **your marker** in the URL
+- [ ] A "Find flights" link opens a pre-filled Aviasales form showing **your
+      nearest airport** as the origin, with no "search failed to launch" error
 - [ ] "Your storefronts" on the dashboard shows only what that browser made
 
 ---
