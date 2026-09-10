@@ -149,10 +149,23 @@ def fetch_transcript(video_id: str) -> str:
             "or the video may be private, age-restricted, or region-locked. "
             "Try a video with captions turned on."
         ) from exc
+    except (requests.exceptions.ProxyError, requests.exceptions.ConnectTimeout) as exc:
+        # We never reached YouTube -- the proxy itself refused or timed out.
+        # Distinct from a block, and fixed in a completely different place.
+        logger.error("Proxy connection failed for %s: %s", video_id, exc)
+        raise TranscriptUnavailable(
+            "Could not connect to the configured proxy. Check the proxy address, "
+            "username and password, and that the proxy is still active."
+        ) from exc
     except Exception as exc:  # network blips, YouTube markup changes
         logger.exception("Transcript fetch failed for %s", video_id)
+        detail = f"{type(exc).__name__}: {exc}"[:200]
+        if config.HAS_PROXY:
+            raise TranscriptUnavailable(
+                f"Transcript fetch failed while using the proxy. {detail}"
+            ) from exc
         raise TranscriptUnavailable(
-            "Could not retrieve the transcript for this video. Please try again."
+            f"Could not retrieve the transcript for this video. {detail}"
         ) from exc
 
     text = " ".join(
