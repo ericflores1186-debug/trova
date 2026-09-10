@@ -189,21 +189,23 @@ def _lookup_iata(city: str, country: str | None = None) -> str | None:
     wanted = _normalise_place(city)
     wanted_country = _normalise_place(country) if country else None
 
-    for result in results:
-        if _normalise_place(result.get("name", "")) != wanted:
-            continue
+    # An exact name match is the signal that matters. Country only breaks ties
+    # between same-named cities -- it cannot veto, because the two sources name
+    # countries differently: a transcript says "Hong Kong, China" while the
+    # endpoint says "Hong Kong, Hong Kong", and USA/United States and
+    # UK/United Kingdom disagree the same way.
+    name_matches = [
+        result
+        for result in results
+        if _normalise_place(result.get("name", "")) == wanted
+    ]
+
+    if name_matches:
         if wanted_country:
-            got_country = _normalise_place(result.get("country_name", ""))
-            if got_country and got_country != wanted_country:
-                logger.info(
-                    "Rejecting %s for %r: it is in %s, not %s",
-                    result.get("code"),
-                    city,
-                    result.get("country_name"),
-                    country,
-                )
-                continue
-        return result.get("code")
+            for result in name_matches:
+                if _normalise_place(result.get("country_name", "")) == wanted_country:
+                    return result.get("code")
+        return name_matches[0].get("code")
 
     logger.info(
         "No airport matches %r (best guess was %r) -- not a flyable destination",

@@ -95,6 +95,16 @@ HAS_PROXY = bool(
     or GENERIC_PROXY_HTTPS_URL
 )
 
+# Commit this build was made from. Render injects RENDER_GIT_COMMIT; without
+# it this is "unknown". Surfaced on /health so a deploy can be confirmed live
+# before testing against it -- otherwise a test silently hits the old
+# container and its result means nothing.
+GIT_COMMIT = (
+    os.getenv("RENDER_GIT_COMMIT")
+    or os.getenv("GIT_COMMIT")
+    or "unknown"
+)[:12]
+
 # --- App ------------------------------------------------------------------
 CORS_ORIGINS = [
     origin.strip()

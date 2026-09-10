@@ -87,6 +87,7 @@ async def health() -> dict:
 
     return {
         "status": "ok",
+        "commit": config.GIT_COMMIT,
         "extraction_model": config.EXTRACTION_MODEL,
         "proxy": proxy,
     }
