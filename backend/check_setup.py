@@ -137,7 +137,7 @@ def main() -> None:
     if not marker or marker == "000000" or not marker.isdigit():
         print(f"{WARN}TRAVELPAYOUTS_MARKER is a placeholder -- links earn no commission")
         print("        Get yours: travelpayouts.com -> sign up -> Profile -> your marker ID")
-    elif mock:
+    elif mock:  # only affects nothing now that the hotel lookup is gone
         print(f"{WARN}Marker {marker} is set, but TRAVELPAYOUTS_MOCK=true")
         print("        Set TRAVELPAYOUTS_MOCK=false to resolve real hotel and flight pages")
     else:

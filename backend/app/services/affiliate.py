@@ -1,13 +1,12 @@
-"""Travelpayouts / Hotellook affiliate link mapping.
+"""Travelpayouts affiliate link mapping.
 
-Mocked by default (`TRAVELPAYOUTS_MOCK=true`): the request shape below is the
-real Hotellook lookup endpoint, but with a placeholder token it will not
-return usable IDs, so every hotel falls back to a marker-tagged search
-deeplink. Those deeplinks are valid affiliate URLs -- they land the visitor on
-a Hotellook search for the property, with your marker attached.
+Hotels get a marker-tagged Hotellook search deeplink, which hands off to
+Booking.com carrying the affiliate label. Flights get an Aviasales pre-filled
+search form, with the destination resolved to a real IATA code.
 
-Set TRAVELPAYOUTS_MOCK=false once you have real credentials to resolve each
-property to its specific hotel page.
+Both carry `marker`, which is what decides who is paid. It is always passed in
+by the caller rather than read from config, so a per-creator value cannot
+silently fall back to the platform's.
 """
 
 from __future__ import annotations
@@ -34,9 +33,7 @@ class LookupUnavailable(Exception):
     """
 
 # Real Travelpayouts endpoints.
-LOOKUP_URL = "https://engine.hotellook.com/api/v2/lookup.json"
 SEARCH_DEEPLINK = "https://search.hotellook.com/hotels"
-HOTEL_DEEPLINK = "https://search.hotellook.com/hotels"
 
 # Flights run through Aviasales, Travelpayouts' flight brand -- same marker as
 # hotels, no second account needed. The autocomplete endpoint resolves a city
@@ -61,70 +58,32 @@ def _search_deeplink(hotel: Hotel, marker: str) -> str:
     return f"{SEARCH_DEEPLINK}?{urlencode(params)}"
 
 
-def _hotel_deeplink(hotel_id: int | str, marker: str) -> str:
-    params = {"hotelId": str(hotel_id), "marker": marker}
-    return f"{HOTEL_DEEPLINK}?{urlencode(params)}"
-
-
-def _lookup_hotel_id(hotel: Hotel) -> str | None:
-    """GET the Travelpayouts lookup endpoint for this property's hotel ID.
-
-    Returns None on any failure -- a missing ID is not worth failing the whole
-    storefront over, the caller just uses the search deeplink instead.
-    """
-    query = hotel.hotel_name
-    if hotel.location and hotel.location != "Unknown":
-        query = f"{hotel.hotel_name}, {hotel.location}"
-
-    try:
-        response = requests.get(
-            LOOKUP_URL,
-            params={
-                "query": query,
-                "lang": "en",
-                "lookFor": "hotel",
-                "limit": 1,
-                "token": config.TRAVELPAYOUTS_API_TOKEN,
-            },
-            timeout=_HTTP_TIMEOUT,
-        )
-        response.raise_for_status()
-        hotels = (response.json().get("results") or {}).get("hotels") or []
-        if hotels:
-            return hotels[0].get("id")
-        logger.info("No Hotellook match for %r", query)
-    except Exception:
-        logger.warning("Travelpayouts lookup failed for %r", query, exc_info=True)
-
-    return None
-
-
 def attach_booking_urls(hotels: list[Hotel], marker: str) -> list[HotelWithLink]:
     """Append a `booking_url` to each extracted hotel.
 
     `marker` decides who gets paid, so it is always passed in explicitly
     rather than read from config -- a per-creator value must never silently
     fall back to the platform's.
+
+    There used to be a lookup here that resolved each property to a specific
+    Hotellook page via `engine.hotellook.com/api/v2/lookup.json`. That endpoint
+    now returns 404 for everyone, token or not, so the call only ever cost a
+    round trip per hotel and returned nothing.
+
+    The search deeplink is what ships instead. It is not a downgrade in
+    practice: it hands off to Booking.com carrying the affiliate label, so the
+    link works and the marker is tracked. Resolving a specific hotel page today
+    would mean the signed, two-step Hotel Search API -- worth doing only if the
+    extra click measurably costs conversions.
     """
-    linked: list[HotelWithLink] = []
-
-    for hotel in hotels:
-        booking_url = None
-
-        if not config.TRAVELPAYOUTS_MOCK:
-            hotel_id = _lookup_hotel_id(hotel)
-            if hotel_id:
-                booking_url = _hotel_deeplink(hotel_id, marker)
-
-        linked.append(
-            HotelWithLink(
-                hotel_name=hotel.hotel_name,
-                location=hotel.location,
-                booking_url=booking_url or _search_deeplink(hotel, marker),
-            )
+    return [
+        HotelWithLink(
+            hotel_name=hotel.hotel_name,
+            location=hotel.location,
+            booking_url=_search_deeplink(hotel, marker),
         )
-
-    return linked
+        for hotel in hotels
+    ]
 
 
 # --- Flights ---------------------------------------------------------------
