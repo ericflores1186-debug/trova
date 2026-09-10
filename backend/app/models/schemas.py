@@ -66,6 +66,7 @@ class HotelWithLink(Hotel):
 
 class FlightWithLink(Flight):
     booking_url: str
+    destination_iata: Optional[str] = None
 
 
 # --- Requests --------------------------------------------------------------
@@ -108,6 +109,7 @@ class AffiliateLinkOut(BaseModel):
 class FlightLinkOut(BaseModel):
     id: str
     destination_city: str
+    destination_iata: Optional[str] = None
     destination_country: Optional[str] = None
     origin_city: Optional[str] = None
     airline: Optional[str] = None
@@ -121,6 +123,9 @@ class StorefrontOut(BaseModel):
     video_url: str
     video_title: str
     created_at: Optional[datetime] = None
+    # Which Travelpayouts marker this storefront's links pay. Needed by the
+    # page to assemble flight deeplinks in the browser.
+    marker_used: Optional[str] = None
     affiliate_links: list[AffiliateLinkOut] = Field(default_factory=list)
     flight_links: list[FlightLinkOut] = Field(default_factory=list)
 

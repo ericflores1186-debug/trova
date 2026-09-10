@@ -147,6 +147,7 @@ def create_flight_links(storefront_id: str, flights: list[FlightWithLink]) -> li
             "destination_country": flight.destination_country,
             "origin_city": flight.origin_city,
             "airline": flight.airline,
+            "destination_iata": flight.destination_iata,
             "booking_url": flight.booking_url,
         }
         for flight in flights
@@ -174,7 +175,7 @@ def get_storefront(storefront_id: str) -> StorefrontOut:
         result = (
             client.table("storefronts")
             .select(
-                "id, creator_id, video_url, video_title, created_at, "
+                "id, creator_id, video_url, video_title, created_at, marker_used, "
                 "affiliate_links(*), flight_links(*)"
             )
             .eq("id", storefront_id)

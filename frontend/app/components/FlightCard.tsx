@@ -1,6 +1,10 @@
+"use client";
+
+import { useEffect, useState } from "react";
 import { ArrowRight, ArrowUpRight, Plane } from "lucide-react";
 
 import { TrackedBookingLink } from "@/app/components/TrackedBookingLink";
+import { getOriginIata, withOrigin } from "@/app/lib/originAirport";
 import type { FlightLink } from "@/app/lib/types";
 
 /**
@@ -17,6 +21,23 @@ export function FlightCard({
   const destination = link.destination_country
     ? `${link.destination_city}, ${link.destination_country}`
     : link.destination_city;
+
+  // Aviasales needs a departure airport, and that is the visitor's, not the
+  // creator's -- so it can only be resolved here, in their browser. Until it
+  // resolves (or if it never does) the stored URL is used unchanged.
+  const [href, setHref] = useState(link.booking_url);
+
+  useEffect(() => {
+    let active = true;
+    getOriginIata().then((origin) => {
+      if (active && origin) {
+        setHref(withOrigin(link.booking_url, link.destination_iata, origin));
+      }
+    });
+    return () => {
+      active = false;
+    };
+  }, [link.booking_url, link.destination_iata]);
 
   return (
     <article className="group flex items-center gap-4 rounded-card border border-sand bg-paper-raised p-5 transition-all duration-300 hover:border-sand-deep hover:shadow-[0_12px_32px_-20px_rgb(25_21_18/0.25)]">
@@ -40,7 +61,7 @@ export function FlightCard({
       </div>
 
       <TrackedBookingLink
-        href={link.booking_url}
+        href={href}
         storefrontId={storefrontId}
         linkId={link.id}
         linkType="flight"

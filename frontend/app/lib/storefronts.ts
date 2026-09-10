@@ -2,9 +2,9 @@ import { getSupabase } from "./supabase";
 import type { Storefront } from "./types";
 
 const STOREFRONT_SELECT =
-  "id, creator_id, video_url, video_title, created_at, " +
+  "id, creator_id, video_url, video_title, created_at, marker_used, " +
   "affiliate_links(id, hotel_name, location, booking_url, created_at), " +
-  "flight_links(id, destination_city, destination_country, origin_city, airline, booking_url, created_at)";
+  "flight_links(id, destination_city, destination_country, destination_iata, origin_city, airline, booking_url, created_at)";
 
 /**
  * Fetch one storefront with its hotel links, in a single joined query.

@@ -11,6 +11,7 @@ export type AffiliateLink = {
 export type FlightLink = {
   id: string;
   destination_city: string;
+  destination_iata: string | null;
   destination_country: string | null;
   origin_city: string | null;
   airline: string | null;
@@ -24,6 +25,7 @@ export type Storefront = {
   video_url: string;
   video_title: string;
   created_at: string | null;
+  marker_used: string | null;
   affiliate_links: AffiliateLink[];
   flight_links: FlightLink[];
 };

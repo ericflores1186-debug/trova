@@ -31,7 +31,11 @@ HOTEL_DEEPLINK = "https://search.hotellook.com/hotels"
 # hotels, no second account needed. The autocomplete endpoint resolves a city
 # name to an IATA code and needs no token.
 AUTOCOMPLETE_URL = "https://autocomplete.travelpayouts.com/places2"
-FLIGHT_DEEPLINK = "https://www.aviasales.com/search"
+# The pre-filled search FORM, not "/search/" -- the results page requires
+# dates and errors outright without them, while the form lets the visitor pick
+# their own. Params are origin-first and the adult-passenger count is
+# mandatory: "?params=NYCCHC1" means New York -> Christchurch, one adult.
+FLIGHT_FORM = "https://www.aviasales.com/"
 
 _HTTP_TIMEOUT = 8
 
@@ -115,23 +119,29 @@ def attach_booking_urls(hotels: list[Hotel], marker: str) -> list[HotelWithLink]
 # --- Flights ---------------------------------------------------------------
 
 
-def _flight_search_deeplink(flight: Flight, marker: str) -> str:
-    """Marker-tagged Aviasales search. Always resolvable, never a dead link."""
-    destination = flight.destination_city
-    if flight.destination_country:
-        destination = f"{destination}, {flight.destination_country}"
+def _flight_fallback_url(marker: str) -> str:
+    """A working, marker-tagged Aviasales form with nothing pre-filled.
 
-    params = {"destination": destination, "marker": marker}
-    if flight.origin_city:
-        params["origin"] = flight.origin_city
-    return f"{FLIGHT_DEEPLINK}?{urlencode(params)}"
+    Used when no IATA code could be resolved. The visitor fills it in
+    themselves -- weaker than a deeplink, but it loads and it still earns.
+    """
+    return f"{FLIGHT_FORM}?{urlencode({'marker': marker})}"
+
+
+def build_flight_params(origin_iata: str | None, destination_iata: str) -> str:
+    """Build the Aviasales `params` value: route, then adult count.
+
+    Origin comes first. Without one the destination is read as the departure
+    point and the form fills backwards, so callers that can know the visitor's
+    airport should always pass it.
+    """
+    route = f"{origin_iata or ''}{destination_iata}".upper()
+    return f"{route}1"  # trailing 1 = one adult; the link does not work without it
 
 
 def _flight_iata_deeplink(origin_iata: str | None, destination_iata: str, marker: str) -> str:
-    params = {"destination_iata": destination_iata, "marker": marker}
-    if origin_iata:
-        params["origin_iata"] = origin_iata
-    return f"{FLIGHT_DEEPLINK}?{urlencode(params)}"
+    params = build_flight_params(origin_iata, destination_iata)
+    return f"{FLIGHT_FORM}?{urlencode({'params': params, 'marker': marker})}"
 
 
 def _lookup_iata(city: str) -> str | None:
@@ -162,13 +172,21 @@ def attach_flight_urls(flights: list[Flight], marker: str) -> list[FlightWithLin
     linked: list[FlightWithLink] = []
 
     for flight in flights:
-        booking_url = None
+        # Resolve the destination IATA even in mock mode: the storefront page
+        # needs it to assemble a deeplink once it knows the visitor's own
+        # airport. The autocomplete endpoint requires no token.
+        destination_iata = _lookup_iata(flight.destination_city)
+        origin_iata = (
+            _lookup_iata(flight.origin_city)
+            if flight.origin_city and destination_iata
+            else None
+        )
 
-        if not config.TRAVELPAYOUTS_MOCK:
-            destination_iata = _lookup_iata(flight.destination_city)
-            if destination_iata:
-                origin_iata = _lookup_iata(flight.origin_city) if flight.origin_city else None
-                booking_url = _flight_iata_deeplink(origin_iata, destination_iata, marker)
+        booking_url = (
+            _flight_iata_deeplink(origin_iata, destination_iata, marker)
+            if destination_iata
+            else _flight_fallback_url(marker)
+        )
 
         linked.append(
             FlightWithLink(
@@ -176,7 +194,8 @@ def attach_flight_urls(flights: list[Flight], marker: str) -> list[FlightWithLin
                 destination_country=flight.destination_country,
                 origin_city=flight.origin_city,
                 airline=flight.airline,
-                booking_url=booking_url or _flight_search_deeplink(flight, marker),
+                destination_iata=destination_iata,
+                booking_url=booking_url,
             )
         )
 
