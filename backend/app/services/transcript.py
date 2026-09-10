@@ -10,7 +10,18 @@ import requests
 from youtube_transcript_api import YouTubeTranscriptApi
 from youtube_transcript_api._errors import CouldNotRetrieveTranscript
 
+from app import config
 from app.errors import InvalidVideoUrl, TranscriptUnavailable
+
+# Errors that mean "YouTube refused us", not "this video has no captions".
+# Named separately because the user-facing advice is completely different.
+_BLOCKED: list[type[Exception]] = []
+for _name in ("IpBlocked", "RequestBlocked", "PoTokenRequired"):
+    try:
+        _BLOCKED.append(getattr(__import__("youtube_transcript_api._errors", fromlist=[_name]), _name))
+    except AttributeError:
+        pass  # older library versions do not define all of these
+_BLOCKED_ERRORS = tuple(_BLOCKED) or (CouldNotRetrieveTranscript,)
 
 logger = logging.getLogger(__name__)
 
@@ -60,18 +71,44 @@ def parse_video_id(video_url: str) -> str:
     return video_id
 
 
+def _build_proxy_config():
+    """Return a ProxyConfig when one is configured, else None.
+
+    YouTube blocks datacenter IPs, so this is required in production and
+    pointless locally -- hence config-driven rather than always on.
+    """
+    if not config.HAS_PROXY:
+        return None
+
+    if config.WEBSHARE_PROXY_USERNAME and config.WEBSHARE_PROXY_PASSWORD:
+        from youtube_transcript_api.proxies import WebshareProxyConfig
+
+        return WebshareProxyConfig(
+            proxy_username=config.WEBSHARE_PROXY_USERNAME,
+            proxy_password=config.WEBSHARE_PROXY_PASSWORD,
+        )
+
+    from youtube_transcript_api.proxies import GenericProxyConfig
+
+    return GenericProxyConfig(
+        http_url=config.GENERIC_PROXY_HTTP_URL or None,
+        https_url=config.GENERIC_PROXY_HTTPS_URL or None,
+    )
+
+
 def _fetch_snippets(video_id: str) -> list[dict]:
     """Call whichever transcript API the installed version exposes.
 
-    0.6.x ships the `get_transcript` classmethod this project targets; 1.x
-    replaced it with an instance-based `fetch()`. Both return per-cue records
-    with a `text` field.
+    0.6.x ships the `get_transcript` classmethod this project originally
+    targeted; 1.x replaced it with an instance-based `fetch()` and is the only
+    line supporting Python 3.14. Both return per-cue records with a `text`
+    field. Proxy support exists only on the 1.x path.
     """
     if hasattr(YouTubeTranscriptApi, "get_transcript"):
         return YouTubeTranscriptApi.get_transcript(video_id)
 
-    fetched = YouTubeTranscriptApi().fetch(video_id)
-    return fetched.to_raw_data()
+    api = YouTubeTranscriptApi(proxy_config=_build_proxy_config())
+    return api.fetch(video_id).to_raw_data()
 
 
 def fetch_transcript(video_id: str) -> str:
@@ -83,9 +120,29 @@ def fetch_transcript(video_id: str) -> str:
     """
     try:
         snippets = _fetch_snippets(video_id)
+    except _BLOCKED_ERRORS as exc:
+        # YouTube refused the request outright rather than the video lacking
+        # captions. On a cloud host this is almost always the datacenter IP
+        # being blocked -- say so, instead of blaming the video.
+        logger.error(
+            "YouTube blocked the request for %s (%s). proxy_configured=%s",
+            video_id,
+            type(exc).__name__,
+            config.HAS_PROXY,
+        )
+        if config.HAS_PROXY:
+            raise TranscriptUnavailable(
+                "YouTube blocked the transcript request even through the proxy. "
+                "Please try again shortly."
+            ) from exc
+        raise TranscriptUnavailable(
+            "YouTube is blocking transcript requests from this server. This "
+            "happens on cloud hosts, whose IP ranges YouTube rate-limits. "
+            "Configure a residential proxy (see DEPLOY.md) to fix it."
+        ) from exc
     except CouldNotRetrieveTranscript as exc:
-        # Covers TranscriptsDisabled, NoTranscriptFound, VideoUnavailable,
-        # and the age/region-restricted variants.
+        # Genuinely about this video: TranscriptsDisabled, NoTranscriptFound,
+        # VideoUnavailable, age/region restrictions.
         logger.info("No transcript for %s: %s", video_id, type(exc).__name__)
         raise TranscriptUnavailable(
             "This video has no usable transcript. Subtitles may be disabled, "

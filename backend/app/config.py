@@ -77,6 +77,24 @@ if MARKER_IS_PLACEHOLDER:
         TRAVELPAYOUTS_MARKER,
     )
 
+# --- YouTube transcript proxy --------------------------------------------
+# YouTube blocks datacenter IP ranges, so transcript fetches fail from any
+# cloud host (Render, Railway, Fly, AWS...) while working fine from a home
+# connection. A residential proxy is the only reliable fix.
+#
+# Set EITHER the Webshare pair (recommended -- the library has built-in
+# support including rotation and retries) OR a generic proxy URL.
+WEBSHARE_PROXY_USERNAME = os.getenv("WEBSHARE_PROXY_USERNAME", "")
+WEBSHARE_PROXY_PASSWORD = os.getenv("WEBSHARE_PROXY_PASSWORD", "")
+GENERIC_PROXY_HTTP_URL = os.getenv("GENERIC_PROXY_HTTP_URL", "")
+GENERIC_PROXY_HTTPS_URL = os.getenv("GENERIC_PROXY_HTTPS_URL", "")
+
+HAS_PROXY = bool(
+    (WEBSHARE_PROXY_USERNAME and WEBSHARE_PROXY_PASSWORD)
+    or GENERIC_PROXY_HTTP_URL
+    or GENERIC_PROXY_HTTPS_URL
+)
+
 # --- App ------------------------------------------------------------------
 CORS_ORIGINS = [
     origin.strip()

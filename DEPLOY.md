@@ -100,11 +100,47 @@ fallbacks in the meantime.
 
 ---
 
+## 3.5 Residential proxy — REQUIRED in production
+
+**Without this, storefront generation does not work on Render at all.**
+
+YouTube blocks datacenter IP ranges from fetching transcripts. The exact same
+video succeeds from your laptop and fails from any cloud host — Render,
+Railway, Fly, AWS, all of them. It is not a bug in Trova and no amount of
+config on Render fixes it; the request has to leave from a residential IP.
+
+The transcript library has built-in support for [Webshare](https://www.webshare.io),
+including rotation and retry-when-blocked. Their residential plan starts at a
+few dollars a month.
+
+1. Sign up at webshare.io and buy a **Residential** proxy plan
+   (**not** "Proxy Server" or "Static Residential" — the library targets the
+   rotating residential endpoint)
+2. **Dashboard → Proxy → Settings** → copy your **Proxy Username** and
+   **Proxy Password**
+3. In Render → **Environment**, add:
+
+   | Key | Value |
+   | --- | --- |
+   | `WEBSHARE_PROXY_USERNAME` | your proxy username |
+   | `WEBSHARE_PROXY_PASSWORD` | your proxy password |
+
+4. **Save and deploy**
+
+Using a different provider? Set `GENERIC_PROXY_HTTP_URL` and
+`GENERIC_PROXY_HTTPS_URL` instead, in the form
+`http://user:pass@host:port`.
+
+When no proxy is set and YouTube blocks a request, the API returns a 422 whose
+message says so explicitly, rather than blaming the video's captions.
+
+---
+
 ## 4. Verify the deploy
 
 - [ ] `https://<render-url>/health` returns ok
 - [ ] Vercel dashboard loads and looks right
-- [ ] Pasting a captioned travel video produces a storefront
+- [ ] Pasting a captioned travel video produces a storefront (needs §3.5)
 - [ ] The storefront URL opens in a **private window** (proves the publishable
       key and RLS work for a stranger, not just for you)
 - [ ] A "Book now" link opens with **your marker** in the URL

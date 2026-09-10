@@ -26,6 +26,12 @@ services:
         value: claude-haiku-4-5
       - key: TRAVELPAYOUTS_MOCK
         value: "false"
+      # Required in production: YouTube blocks datacenter IPs.
+      # See DEPLOY.md section 3.5.
+      - key: WEBSHARE_PROXY_USERNAME
+        sync: false
+      - key: WEBSHARE_PROXY_PASSWORD
+        sync: false
       # Must list your real Vercel domain, or the browser blocks every call.
       - key: CORS_ORIGINS
         sync: false
