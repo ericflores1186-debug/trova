@@ -13,6 +13,8 @@ property to its specific hotel page.
 from __future__ import annotations
 
 import logging
+import re
+import unicodedata
 from urllib.parse import urlencode
 
 import requests
@@ -21,6 +23,15 @@ from app import config
 from app.models.schemas import Flight, FlightWithLink, Hotel, HotelWithLink
 
 logger = logging.getLogger(__name__)
+
+
+class LookupUnavailable(Exception):
+    """The autocomplete endpoint could not be reached.
+
+    Distinct from "no match": a network failure must not silently delete a
+    creator's destinations, whereas a genuine no-match means the place has no
+    airport and is not a flight destination at all.
+    """
 
 # Real Travelpayouts endpoints.
 LOOKUP_URL = "https://engine.hotellook.com/api/v2/lookup.json"
@@ -144,11 +155,24 @@ def _flight_iata_deeplink(origin_iata: str | None, destination_iata: str, marker
     return f"{FLIGHT_FORM}?{urlencode({'params': params, 'marker': marker})}"
 
 
-def _lookup_iata(city: str) -> str | None:
-    """Resolve a city name to its IATA code via Travelpayouts autocomplete.
+def _normalise_place(value: str) -> str:
+    """Casefold and strip punctuation/accents so names compare sensibly."""
+    decomposed = unicodedata.normalize("NFKD", value or "")
+    stripped = "".join(ch for ch in decomposed if not unicodedata.combining(ch))
+    return re.sub(r"[^a-z0-9]+", "", stripped.casefold())
 
-    Returns None on any failure -- the caller falls back to a name-based
-    search link rather than failing the storefront.
+
+def _lookup_iata(city: str, country: str | None = None) -> str | None:
+    """Resolve a city to its IATA code, or None if there is no real match.
+
+    The autocomplete endpoint is fuzzy and always answers: "Kyoto" comes back
+    as Nice, France, and "Nara" as Narathiwat, Thailand -- because neither
+    Japanese city has an airport. Taking the first result blindly sent
+    travellers to the wrong continent, so the name (and country, when known)
+    must actually match what was asked for.
+
+    Returns None both when nothing matches and when the lookup fails; the
+    caller distinguishes the two.
     """
     try:
         response = requests.get(
@@ -158,12 +182,34 @@ def _lookup_iata(city: str) -> str | None:
         )
         response.raise_for_status()
         results = response.json() or []
-        if results:
-            return results[0].get("code")
-        logger.info("No IATA match for %r", city)
     except Exception as exc:
         logger.warning("IATA lookup failed for %r: %s", city, exc)
+        raise LookupUnavailable(str(exc)) from exc
 
+    wanted = _normalise_place(city)
+    wanted_country = _normalise_place(country) if country else None
+
+    for result in results:
+        if _normalise_place(result.get("name", "")) != wanted:
+            continue
+        if wanted_country:
+            got_country = _normalise_place(result.get("country_name", ""))
+            if got_country and got_country != wanted_country:
+                logger.info(
+                    "Rejecting %s for %r: it is in %s, not %s",
+                    result.get("code"),
+                    city,
+                    result.get("country_name"),
+                    country,
+                )
+                continue
+        return result.get("code")
+
+    logger.info(
+        "No airport matches %r (best guess was %r) -- not a flyable destination",
+        city,
+        (results[0].get("name") if results else None),
+    )
     return None
 
 
@@ -175,18 +221,40 @@ def attach_flight_urls(flights: list[Flight], marker: str) -> list[FlightWithLin
         # Resolve the destination IATA even in mock mode: the storefront page
         # needs it to assemble a deeplink once it knows the visitor's own
         # airport. The autocomplete endpoint requires no token.
-        destination_iata = _lookup_iata(flight.destination_city)
-        origin_iata = (
-            _lookup_iata(flight.origin_city)
-            if flight.origin_city and destination_iata
-            else None
-        )
+        try:
+            destination_iata = _lookup_iata(
+                flight.destination_city, flight.destination_country
+            )
+        except LookupUnavailable:
+            # Endpoint down. Keep the destination with a generic link rather
+            # than deleting it -- a temporary outage must not silently shrink
+            # a storefront.
+            linked.append(
+                FlightWithLink(
+                    destination_city=flight.destination_city,
+                    destination_country=flight.destination_country,
+                    origin_city=flight.origin_city,
+                    airline=flight.airline,
+                    destination_iata=None,
+                    booking_url=_flight_fallback_url(marker),
+                )
+            )
+            continue
 
-        booking_url = (
-            _flight_iata_deeplink(origin_iata, destination_iata, marker)
-            if destination_iata
-            else _flight_fallback_url(marker)
-        )
+        if not destination_iata:
+            # No airport answers to this name, so it is a place you reach by
+            # train or car once you are already there -- Kyoto, Nara, a
+            # national park. Not a flight, and a link to a fuzzy-matched
+            # airport on another continent is worse than no link at all.
+            logger.info("Dropping %r: no airport, not a flight destination", flight.destination_city)
+            continue
+
+        try:
+            origin_iata = (
+                _lookup_iata(flight.origin_city) if flight.origin_city else None
+            )
+        except LookupUnavailable:
+            origin_iata = None
 
         linked.append(
             FlightWithLink(
@@ -195,7 +263,7 @@ def attach_flight_urls(flights: list[Flight], marker: str) -> list[FlightWithLin
                 origin_city=flight.origin_city,
                 airline=flight.airline,
                 destination_iata=destination_iata,
-                booking_url=booking_url,
+                booking_url=_flight_iata_deeplink(origin_iata, destination_iata, marker),
             )
         )
 
