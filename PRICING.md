@@ -6,19 +6,28 @@
 their storefronts.
 
 **Founding creators keep 100%, permanently.** The first 10 creators onboarded
-pay nothing, for as long as they use Trova. This is not a trial and does not
-expire.
+pay nothing, for as long as they use Trova. Not a trial, does not expire.
 
 ## How it compares
 
-| Platform | Creator keeps |
-| --- | --- |
-| LTK | 70–80% |
-| Howl / Levanta | 75–80% |
-| **Trova** | **85%** |
-| **Trova founding creators** | **100%** |
+Be careful with this comparison -- it is easy to get wrong, and getting it
+wrong in a pitch is worse than not making it.
 
-Best rate in the category. That is the pitch, and it should stay true.
+Most creator affiliate platforms (LTK, ShopMy, Levanta) **charge brands, not
+creators**. Levanta states plainly that it takes no revenue share from creator
+earnings. Their headline "20-30%" figures are the commission *brands pay per
+sale*, not a platform cut. So at 15% Trova takes **more** from creators than
+those platforms, not less.
+
+**Do not claim to have the best rate in the category.** The honest pitch is
+what the tool does and what it saves, not the percentage.
+
+The real alternative a creator has is signing up with Travelpayouts directly
+and keeping 100%. What Trova offers instead:
+
+- No Travelpayouts account, no approval wait
+- No $200 minimum before their first payout (see below)
+- Extraction, hosting and links they would otherwise do by hand
 
 ## Why 15% and not lower
 
@@ -27,40 +36,56 @@ Commission per booking is small, so the percentage has to carry real weight:
 | Product | Commission | Per booking |
 | --- | --- | --- |
 | Hotels (Hotellook) | ~3% of booking value | ~$12 on a $400 stay |
-| Flights (Aviasales) | ~1.1–1.3% of ticket | ~$7 on a $600 flight |
+| Flights (Aviasales) | ~1.1-1.3% of ticket | ~$7 on a $600 flight |
 
 At 15%, an active creator driving 20 hotel bookings a month earns Trova about
-**$36**. At 5% it is $12 — less than the cost of processing a payout, tax
-paperwork, and answering one support email about it.
+**$36**. At 5% it is $12 -- less than the cost of processing a payout and
+answering one support email about it.
 
-15% is the lowest rate at which the business covers the cost of moving money.
+Take rates almost never go up. Starting at 15% and discounting is easy; the
+reverse reads as a betrayal even when it is fair.
 
-Raising a take rate later reads as a betrayal even when it is fair. Start here
-rather than starting low and correcting upward.
+## How the money actually moves
 
-## What is actually implemented
+Every booking link carries **Trova's marker plus a SubID naming the creator**
+-- `marker=572600.wanderlust`. Travelpayouts pays Trova, and its
+Reports -> Performance page splits earnings by SubID. That breakdown is the
+payout sheet.
 
-**Nothing takes a cut today.** The code pays creators 100% via their own
-Travelpayouts marker — see `schema_creator_marker.sql`. That matches the
-founding-creator offer exactly, which is why founding creators can be onboarded
-right now with no further work.
+**This is built and working.** Creators need no Travelpayouts account.
 
-Charging 15% requires infrastructure that does not exist yet:
+Paying creators is done **by hand**: read the SubID report, pay by PayPal
+monthly. At ten creators that is a spreadsheet and twenty minutes. Stripe
+Connect, automated ledgers and tax forms are a problem for creator #50, not
+creator #10.
 
-1. Trova's marker on every link, with a per-creator sub-ID for attribution
-   (Travelpayouts pays one account per link; there is no split at the link
-   level)
-2. Per-creator earnings tracking
-3. Payouts — Stripe Connect, minimum thresholds, tax forms
+A creator who would rather be paid directly can still enter their own marker
+in the form; their links then carry it and Trova takes nothing.
 
-Build this when there are creators worth paying, not before.
+## Timing, and what to tell creators
+
+```
+viewer clicks -> books -> STAYS -> +~1 week confirmed -> paid the next month
+```
+
+Six weeks if they booked for next week, several months if they booked a summer
+trip in January. Nobody is paid until the guest actually stays -- that is hotel
+affiliate everywhere, not a Travelpayouts quirk.
+
+**Pay creators the month after Travelpayouts pays you.** Do not promise faster
+unless you are willing to front the cash: ten creators at ~$30/month for four
+months is roughly $1,200 out of pocket before the first transfer lands.
+
+Travelpayouts' own minimum is **$200 by bank transfer**. Pooled across every
+creator you cross that quickly; a creator alone earning $30/month would wait
+seven months. That gap is the clearest reason for Trova to sit in the middle.
 
 ## Honest caveat
 
-At these commission rates, 100 active creators at 15% is roughly $3,600/month.
-That is a good side income, not a company. If Trova needs to be bigger, the
-realistic levers are a subscription (creators keep 100%, pay a flat monthly
-fee) or targeting creators with much larger audiences — not a higher take rate.
+At these rates, 100 active creators at 15% is roughly $3,600/month. Good side
+income, not a company. If Trova needs to be bigger, the levers are a
+subscription (creators keep 100%, pay a flat monthly fee) or creators with much
+larger audiences -- not a higher take rate.
 
-Revisit this once real conversion data exists. The first creator's numbers are
-worth more than any of the modelling behind this document.
+Revisit once real conversion data exists. The first creator's numbers are worth
+more than any of the modelling behind this document.
