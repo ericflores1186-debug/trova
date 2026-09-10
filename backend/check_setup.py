@@ -132,14 +132,13 @@ def main() -> None:
         fail(f"Anthropic call failed: {exc}", "Check your key and network")
 
     # --- 4. Travelpayouts (warn only -- the app runs fine without it) ----
+    # The marker is the only Travelpayouts setting that still changes anything.
+    # TRAVELPAYOUTS_MOCK and TRAVELPAYOUTS_API_TOKEN gated the Hotellook lookup,
+    # which was removed once that endpoint started returning 404 for everyone.
     marker = os.getenv("TRAVELPAYOUTS_MARKER", "")
-    mock = os.getenv("TRAVELPAYOUTS_MOCK", "true").lower() == "true"
     if not marker or marker == "000000" or not marker.isdigit():
         print(f"{WARN}TRAVELPAYOUTS_MARKER is a placeholder -- links earn no commission")
         print("        Get yours: travelpayouts.com -> sign up -> Profile -> your marker ID")
-    elif mock:  # only affects nothing now that the hotel lookup is gone
-        print(f"{WARN}Marker {marker} is set, but TRAVELPAYOUTS_MOCK=true")
-        print("        Set TRAVELPAYOUTS_MOCK=false to resolve real hotel and flight pages")
     else:
         print(f"{OK}Travelpayouts live, marker {marker}")
 
