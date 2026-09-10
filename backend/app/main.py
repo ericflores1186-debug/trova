@@ -84,15 +84,33 @@ async def generate_storefront(payload: GenerateStorefrontRequest) -> GenerateSto
             "Try a travel vlog that names where they stayed or where they went."
         )
 
-    linked_hotels = affiliate.attach_booking_urls(found.hotels)
-    linked_flights = affiliate.attach_flight_urls(found.flights)
+    # Resolve the creator first: their marker decides who gets paid, so the
+    # links cannot be built until we know it.
+    creator = storage.upsert_creator(
+        payload.creator_name,
+        payload.youtube_handle,
+        payload.travelpayouts_marker,
+    )
+    creator_id = creator["id"]
+    creator_marker = (creator.get("travelpayouts_marker") or "").strip()
+    marker_used = creator_marker or config.TRAVELPAYOUTS_MARKER
 
-    creator_id = storage.upsert_creator(payload.creator_name, payload.youtube_handle)
+    if not creator_marker:
+        logger.info(
+            "Creator %s has no marker; falling back to the platform marker %s",
+            creator_id,
+            config.TRAVELPAYOUTS_MARKER,
+        )
+
+    linked_hotels = affiliate.attach_booking_urls(found.hotels, marker_used)
+    linked_flights = affiliate.attach_flight_urls(found.flights, marker_used)
+
     video_url = f"https://www.youtube.com/watch?v={video_id}"
     storefront_id = storage.create_storefront(
         creator_id=creator_id,
         video_url=video_url,
         video_title=video_title,
+        marker_used=marker_used,
     )
     links = storage.create_affiliate_links(storefront_id, linked_hotels)
     flights = storage.create_flight_links(storefront_id, linked_flights)
@@ -106,6 +124,8 @@ async def generate_storefront(payload: GenerateStorefrontRequest) -> GenerateSto
 
     return GenerateStorefrontResponse(
         storefront_id=storefront_id,
+        marker_used=marker_used,
+        marker_is_creators=bool(creator_marker),
         video_title=video_title,
         hotels_found=len(links),
         flights_found=len(flights),

@@ -36,18 +36,18 @@ FLIGHT_DEEPLINK = "https://www.aviasales.com/search"
 _HTTP_TIMEOUT = 8
 
 
-def _search_deeplink(hotel: Hotel) -> str:
+def _search_deeplink(hotel: Hotel, marker: str) -> str:
     """Marker-tagged search deeplink. Always resolvable, never a dead link."""
     query = f"{hotel.hotel_name} {hotel.location}".strip() if hotel.location != "Unknown" else hotel.hotel_name
     params = {
         "destination": query,
-        "marker": config.TRAVELPAYOUTS_MARKER,
+        "marker": marker,
     }
     return f"{SEARCH_DEEPLINK}?{urlencode(params)}"
 
 
-def _hotel_deeplink(hotel_id: int | str) -> str:
-    params = {"hotelId": str(hotel_id), "marker": config.TRAVELPAYOUTS_MARKER}
+def _hotel_deeplink(hotel_id: int | str, marker: str) -> str:
+    params = {"hotelId": str(hotel_id), "marker": marker}
     return f"{HOTEL_DEEPLINK}?{urlencode(params)}"
 
 
@@ -84,8 +84,13 @@ def _lookup_hotel_id(hotel: Hotel) -> str | None:
     return None
 
 
-def attach_booking_urls(hotels: list[Hotel]) -> list[HotelWithLink]:
-    """Append a `booking_url` to each extracted hotel."""
+def attach_booking_urls(hotels: list[Hotel], marker: str) -> list[HotelWithLink]:
+    """Append a `booking_url` to each extracted hotel.
+
+    `marker` decides who gets paid, so it is always passed in explicitly
+    rather than read from config -- a per-creator value must never silently
+    fall back to the platform's.
+    """
     linked: list[HotelWithLink] = []
 
     for hotel in hotels:
@@ -94,13 +99,13 @@ def attach_booking_urls(hotels: list[Hotel]) -> list[HotelWithLink]:
         if not config.TRAVELPAYOUTS_MOCK:
             hotel_id = _lookup_hotel_id(hotel)
             if hotel_id:
-                booking_url = _hotel_deeplink(hotel_id)
+                booking_url = _hotel_deeplink(hotel_id, marker)
 
         linked.append(
             HotelWithLink(
                 hotel_name=hotel.hotel_name,
                 location=hotel.location,
-                booking_url=booking_url or _search_deeplink(hotel),
+                booking_url=booking_url or _search_deeplink(hotel, marker),
             )
         )
 
@@ -110,20 +115,20 @@ def attach_booking_urls(hotels: list[Hotel]) -> list[HotelWithLink]:
 # --- Flights ---------------------------------------------------------------
 
 
-def _flight_search_deeplink(flight: Flight) -> str:
+def _flight_search_deeplink(flight: Flight, marker: str) -> str:
     """Marker-tagged Aviasales search. Always resolvable, never a dead link."""
     destination = flight.destination_city
     if flight.destination_country:
         destination = f"{destination}, {flight.destination_country}"
 
-    params = {"destination": destination, "marker": config.TRAVELPAYOUTS_MARKER}
+    params = {"destination": destination, "marker": marker}
     if flight.origin_city:
         params["origin"] = flight.origin_city
     return f"{FLIGHT_DEEPLINK}?{urlencode(params)}"
 
 
-def _flight_iata_deeplink(origin_iata: str | None, destination_iata: str) -> str:
-    params = {"destination_iata": destination_iata, "marker": config.TRAVELPAYOUTS_MARKER}
+def _flight_iata_deeplink(origin_iata: str | None, destination_iata: str, marker: str) -> str:
+    params = {"destination_iata": destination_iata, "marker": marker}
     if origin_iata:
         params["origin_iata"] = origin_iata
     return f"{FLIGHT_DEEPLINK}?{urlencode(params)}"
@@ -152,7 +157,7 @@ def _lookup_iata(city: str) -> str | None:
     return None
 
 
-def attach_flight_urls(flights: list[Flight]) -> list[FlightWithLink]:
+def attach_flight_urls(flights: list[Flight], marker: str) -> list[FlightWithLink]:
     """Append a `booking_url` to each extracted destination."""
     linked: list[FlightWithLink] = []
 
@@ -163,7 +168,7 @@ def attach_flight_urls(flights: list[Flight]) -> list[FlightWithLink]:
             destination_iata = _lookup_iata(flight.destination_city)
             if destination_iata:
                 origin_iata = _lookup_iata(flight.origin_city) if flight.origin_city else None
-                booking_url = _flight_iata_deeplink(origin_iata, destination_iata)
+                booking_url = _flight_iata_deeplink(origin_iata, destination_iata, marker)
 
         linked.append(
             FlightWithLink(
@@ -171,7 +176,7 @@ def attach_flight_urls(flights: list[Flight]) -> list[FlightWithLink]:
                 destination_country=flight.destination_country,
                 origin_city=flight.origin_city,
                 airline=flight.airline,
-                booking_url=booking_url or _flight_search_deeplink(flight),
+                booking_url=booking_url or _flight_search_deeplink(flight, marker),
             )
         )
 

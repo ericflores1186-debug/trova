@@ -19,40 +19,73 @@ from app.models.schemas import (
 logger = logging.getLogger(__name__)
 
 
-def upsert_creator(name: str | None, youtube_handle: str | None) -> str:
-    """Return the creator's ID, reusing an existing row when the handle matches."""
+def upsert_creator(
+    name: str | None,
+    youtube_handle: str | None,
+    travelpayouts_marker: str | None = None,
+) -> dict:
+    """Return the creator row, reusing an existing one when the handle matches.
+
+    A supplied marker updates the stored one; omitting it keeps whatever the
+    creator already had, so a later storefront does not silently stop paying
+    them just because the field was left blank.
+    """
     client = get_client()
     handle = (youtube_handle or "").strip() or None
     display_name = (name or "").strip() or handle or "Unknown creator"
+    marker = (travelpayouts_marker or "").strip() or None
 
     try:
         if handle:
             existing = (
                 client.table("creators")
-                .select("id")
+                .select("id, name, youtube_handle, travelpayouts_marker")
                 .eq("youtube_handle", handle)
                 .limit(1)
                 .execute()
             )
             if existing.data:
-                return existing.data[0]["id"]
+                row = existing.data[0]
+                if marker and marker != row.get("travelpayouts_marker"):
+                    updated = (
+                        client.table("creators")
+                        .update({"travelpayouts_marker": marker})
+                        .eq("id", row["id"])
+                        .execute()
+                    )
+                    logger.info("Updated marker for creator %s", row["id"])
+                    return updated.data[0] if updated.data else {**row, "travelpayouts_marker": marker}
+                return row
 
         created = (
             client.table("creators")
-            .insert({"name": display_name, "youtube_handle": handle})
+            .insert(
+                {
+                    "name": display_name,
+                    "youtube_handle": handle,
+                    "travelpayouts_marker": marker,
+                }
+            )
             .execute()
         )
     except APIError as exc:
         logger.exception("Creator upsert failed")
+        if "travelpayouts_marker" in str(exc):
+            raise StorageFailed(
+                "The creators table has no travelpayouts_marker column. Run "
+                "backend/schema_creator_marker.sql in the Supabase SQL editor."
+            ) from exc
         raise StorageFailed(f"Could not save the creator: {exc.message}") from exc
 
     if not created.data:
         raise StorageFailed("Could not save the creator.")
 
-    return created.data[0]["id"]
+    return created.data[0]
 
 
-def create_storefront(creator_id: str, video_url: str, video_title: str) -> str:
+def create_storefront(
+    creator_id: str, video_url: str, video_title: str, marker_used: str
+) -> str:
     client = get_client()
     try:
         created = (
@@ -62,6 +95,7 @@ def create_storefront(creator_id: str, video_url: str, video_title: str) -> str:
                     "creator_id": creator_id,
                     "video_url": video_url,
                     "video_title": video_title,
+                    "marker_used": marker_used,
                 }
             )
             .execute()

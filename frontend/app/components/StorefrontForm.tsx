@@ -33,6 +33,7 @@ export function StorefrontForm() {
   const [videoUrl, setVideoUrl] = useState("");
   const [creatorName, setCreatorName] = useState("");
   const [youtubeHandle, setYoutubeHandle] = useState("");
+  const [marker, setMarker] = useState("");
   const [isPending, setIsPending] = useState(false);
   const [step, setStep] = useState(0);
   const [error, setError] = useState<{ code: string; message: string } | null>(null);
@@ -73,6 +74,7 @@ export function StorefrontForm() {
           videoUrl: trimmedUrl,
           creatorName: creatorName.trim(),
           youtubeHandle: youtubeHandle.trim(),
+          travelpayoutsMarker: marker.trim(),
         },
         controller.signal,
       );
@@ -168,8 +170,38 @@ export function StorefrontForm() {
               className="rounded-xl border border-sand bg-paper-raised px-4 py-2.5 text-sm text-ink outline-none transition-colors placeholder:text-ink-faint focus:border-clay disabled:opacity-60"
             />
           </div>
-          <p className="mt-2 text-xs text-ink-faint">
-            Optional. Adding a handle groups every storefront you make under one creator.
+          <div className="mt-3">
+            <input
+              type="text"
+              inputMode="numeric"
+              value={marker}
+              onChange={(e) => setMarker(e.target.value.replace(/\D/g, ""))}
+              disabled={isPending}
+              placeholder="Travelpayouts marker (digits only)"
+              aria-label="Travelpayouts marker"
+              className="w-full rounded-xl border border-sand bg-paper-raised px-4 py-2.5 text-sm text-ink outline-none transition-colors placeholder:text-ink-faint focus:border-clay disabled:opacity-60"
+            />
+            <p className="mt-2 text-xs leading-relaxed text-ink-faint">
+              <strong className="font-medium text-ink-soft">
+                Add your marker to get paid.
+              </strong>{" "}
+              It is the affiliate ID from your{" "}
+              <a
+                href="https://www.travelpayouts.com"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="underline decoration-sand-deep underline-offset-2 hover:text-clay"
+              >
+                Travelpayouts
+              </a>{" "}
+              account, and it decides who earns commission on every booking made
+              from this storefront. Without it, commission goes to Trova instead of
+              you. Saved against your handle, so you only enter it once.
+            </p>
+          </div>
+
+          <p className="mt-3 text-xs text-ink-faint">
+            All optional. A handle groups every storefront you make under one creator.
           </p>
         </details>
       </form>

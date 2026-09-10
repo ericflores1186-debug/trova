@@ -33,6 +33,8 @@ export type GenerateStorefrontResponse = {
   video_title: string;
   hotels_found: number;
   flights_found: number;
+  marker_used: string;
+  marker_is_creators: boolean;
 };
 
 /** Shape of every non-2xx body from the FastAPI backend. */

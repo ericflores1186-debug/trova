@@ -82,6 +82,16 @@ class GenerateStorefrontRequest(BaseModel):
         max_length=100,
         description="Stable identifier for the creator, e.g. '@wanderlust'. Used to de-duplicate creators.",
     )
+    travelpayouts_marker: Optional[str] = Field(
+        default=None,
+        max_length=32,
+        pattern=r"^\d*$",
+        description=(
+            "The creator's own Travelpayouts marker, so commission on this "
+            "storefront pays them. Digits only. Omit to keep whatever marker "
+            "the creator already has, or the platform default if they have none."
+        ),
+    )
 
 
 # --- Responses -------------------------------------------------------------
@@ -117,6 +127,10 @@ class StorefrontOut(BaseModel):
 
 class GenerateStorefrontResponse(BaseModel):
     storefront_id: str
+    # Which marker these links will actually pay. Surfaced so the UI can warn
+    # a creator that they are not the one earning.
+    marker_used: str
+    marker_is_creators: bool
     video_title: str
     hotels_found: int
     flights_found: int
