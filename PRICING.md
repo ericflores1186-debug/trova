@@ -25,8 +25,8 @@ what the tool does and what it saves, not the percentage.
 The real alternative a creator has is signing up with Travelpayouts directly
 and keeping 100%. What Trova offers instead:
 
-- No Travelpayouts account, no approval wait
-- No $200 minimum before their first payout (see below)
+- No Travelpayouts account, no approval wait, no payout method to configure
+- A lower effective threshold before their first payment (see below)
 - Extraction, hosting and links they would otherwise do by hand
 
 ## Why 15% and not lower
@@ -76,9 +76,19 @@ affiliate everywhere, not a Travelpayouts quirk.
 unless you are willing to front the cash: ten creators at ~$30/month for four
 months is roughly $1,200 out of pocket before the first transfer lands.
 
-Travelpayouts' own minimum is **$200 by bank transfer**. Pooled across every
-creator you cross that quickly; a creator alone earning $30/month would wait
-seven months. That gap is the clearest reason for Trova to sit in the middle.
+Travelpayouts' minimum **depends on the payout method** -- their own example is
+**$50 for PayPal**, with bank transfer higher. Their earlier-quoted $200 figure
+is the bank-transfer case, not the floor.
+
+There is a second delay that is easy to miss: earnings from the current month
+never count toward the current payout cycle, so a balance can clear the
+minimum and still wait for the next run.
+
+Pooled across every creator, Trova clears any threshold quickly and can pay a
+creator $30 the month it arrives. Alone, that creator waits about two months to
+reach $50 -- real, but a smaller advantage than a $200 floor would have made
+it. Do not oversell this point: the stronger arguments are no signup, no
+approval wait, and nothing for them to administer.
 
 ## Honest caveat
 
