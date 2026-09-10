@@ -1,8 +1,17 @@
 import { ArrowUpRight, MapPin } from "lucide-react";
 
+import { TrackedBookingLink } from "@/app/components/TrackedBookingLink";
 import type { AffiliateLink } from "@/app/lib/types";
 
-export function HotelCard({ link, index }: { link: AffiliateLink; index: number }) {
+export function HotelCard({
+  link,
+  index,
+  storefrontId,
+}: {
+  link: AffiliateLink;
+  index: number;
+  storefrontId: string;
+}) {
   const hasLocation = link.location && link.location !== "Unknown";
 
   return (
@@ -30,11 +39,11 @@ export function HotelCard({ link, index }: { link: AffiliateLink; index: number 
         </p>
 
         <div className="mt-auto pt-2">
-          <a
+          <TrackedBookingLink
             href={link.booking_url}
-            target="_blank"
-            /* `sponsored` is the correct rel for paid/affiliate outbound links. */
-            rel="sponsored noopener noreferrer"
+            storefrontId={storefrontId}
+            linkId={link.id}
+            linkType="hotel"
             className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-clay px-5 py-3 text-sm font-medium text-paper-raised transition-colors hover:bg-clay-deep focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-clay-deep"
           >
             Book now
@@ -47,7 +56,7 @@ export function HotelCard({ link, index }: { link: AffiliateLink; index: number 
               at {link.hotel_name}
               {hasLocation ? `, ${link.location}` : ""} (opens in a new tab)
             </span>
-          </a>
+          </TrackedBookingLink>
         </div>
       </div>
     </article>

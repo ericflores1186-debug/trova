@@ -7,17 +7,19 @@ from __future__ import annotations
 
 import logging
 
-from fastapi import FastAPI, Request
+from fastapi import BackgroundTasks, FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from app import config
 from app.errors import AppError, NoHotelsFound
 from app.models.schemas import (
+    ClickIn,
     ErrorResponse,
     GenerateStorefrontRequest,
     GenerateStorefrontResponse,
     StorefrontOut,
+    StorefrontStats,
 )
 from app.services import affiliate, extraction, storage, transcript
 
@@ -138,6 +140,34 @@ async def generate_storefront(payload: GenerateStorefrontRequest) -> GenerateSto
             flight_links=flights,
         ),
     )
+
+
+@app.post("/api/clicks", status_code=204)
+async def record_click(
+    click: ClickIn, request: Request, background: BackgroundTasks
+) -> Response:
+    """Record an outbound click from a storefront page.
+
+    Returns immediately and writes in the background: the visitor is already
+    on their way to the booking site, and analytics must never delay or block
+    that. Reported by the page rather than by routing the link through a
+    redirect here, so a booking link never depends on this service being up.
+    """
+    background.add_task(
+        storage.record_click,
+        storefront_id=click.storefront_id,
+        link_id=click.link_id,
+        link_type=click.link_type,
+        referrer=request.headers.get("referer"),
+        user_agent=request.headers.get("user-agent"),
+    )
+    return Response(status_code=204)
+
+
+@app.get("/api/storefronts/{storefront_id}/stats", response_model=StorefrontStats)
+async def read_storefront_stats(storefront_id: str) -> StorefrontStats:
+    """Click-through numbers for one storefront."""
+    return StorefrontStats(**storage.get_storefront_stats(storefront_id))
 
 
 @app.get(

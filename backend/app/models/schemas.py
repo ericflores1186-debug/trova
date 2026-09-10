@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Optional
+from typing import Literal, Optional
 
 from pydantic import BaseModel, Field
 
@@ -135,6 +135,25 @@ class GenerateStorefrontResponse(BaseModel):
     hotels_found: int
     flights_found: int
     storefront: StorefrontOut
+
+
+class ClickIn(BaseModel):
+    """One outbound click, reported by the storefront page."""
+
+    storefront_id: str
+    link_id: str
+    link_type: Literal["hotel", "flight"]
+
+
+class StorefrontStats(BaseModel):
+    storefront_id: str
+    total_clicks: int
+    hotel_clicks: int
+    flight_clicks: int
+    clicks_last_30_days: int
+    by_link: dict[str, int] = Field(
+        default_factory=dict, description="Click count keyed by affiliate/flight link id."
+    )
 
 
 class ErrorResponse(BaseModel):

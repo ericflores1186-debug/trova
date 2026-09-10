@@ -145,7 +145,12 @@ export default async function StorefrontPage({ params }: PageProps) {
             </h2>
             <div className="mt-6 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
               {links.map((link, index) => (
-                <HotelCard key={link.id} link={link} index={index} />
+                <HotelCard
+                  key={link.id}
+                  link={link}
+                  index={index}
+                  storefrontId={storefront.id}
+                />
               ))}
             </div>
           </section>
@@ -161,7 +166,7 @@ export default async function StorefrontPage({ params }: PageProps) {
             </h2>
             <div className="mt-6 grid gap-4 lg:grid-cols-2">
               {flights.map((flight) => (
-                <FlightCard key={flight.id} link={flight} />
+                <FlightCard key={flight.id} link={flight} storefrontId={storefront.id} />
               ))}
             </div>
           </section>

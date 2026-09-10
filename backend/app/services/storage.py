@@ -197,3 +197,83 @@ def get_storefront(storefront_id: str) -> StorefrontOut:
         affiliate_links=[AffiliateLinkOut(**link) for link in links],
         flight_links=[FlightLinkOut(**flight) for flight in flights],
     )
+
+
+# --- Click tracking --------------------------------------------------------
+
+
+def record_click(
+    storefront_id: str,
+    link_id: str,
+    link_type: str,
+    referrer: str | None,
+    user_agent: str | None,
+) -> None:
+    """Insert one outbound click.
+
+    Never raises: a failed analytics write must not surface to the visitor,
+    who has already left for the booking site by the time this runs.
+    """
+    try:
+        get_client().table("link_clicks").insert(
+            {
+                "storefront_id": storefront_id,
+                "link_id": link_id,
+                "link_type": link_type,
+                "referrer": (referrer or "")[:500] or None,
+                "user_agent": (user_agent or "")[:500] or None,
+            }
+        ).execute()
+    except APIError as exc:
+        if "does not exist" in str(exc) or "PGRST205" in str(exc):
+            logger.error(
+                "link_clicks table missing -- run backend/schema_clicks.sql. Click dropped."
+            )
+        else:
+            logger.warning("Could not record click: %s", exc)
+    except Exception:
+        logger.warning("Could not record click", exc_info=True)
+
+
+def get_storefront_stats(storefront_id: str) -> dict:
+    """Aggregate click counts for one storefront."""
+    from datetime import datetime, timedelta, timezone
+
+    client = get_client()
+    try:
+        result = (
+            client.table("link_clicks")
+            .select("link_id, link_type, clicked_at")
+            .eq("storefront_id", storefront_id)
+            .execute()
+        )
+    except APIError as exc:
+        if "does not exist" in str(exc) or "PGRST205" in str(exc):
+            raise StorageFailed(
+                "The link_clicks table does not exist. Run backend/schema_clicks.sql "
+                "in the Supabase SQL editor."
+            ) from exc
+        raise StorageFailed(f"Could not load stats: {exc.message}") from exc
+
+    rows = result.data or []
+    cutoff = datetime.now(timezone.utc) - timedelta(days=30)
+
+    by_link: dict[str, int] = {}
+    recent = 0
+    for row in rows:
+        by_link[row["link_id"]] = by_link.get(row["link_id"], 0) + 1
+        stamp = row.get("clicked_at") or ""
+        try:
+            if datetime.fromisoformat(stamp.replace("Z", "+00:00")) >= cutoff:
+                recent += 1
+        except ValueError:
+            pass
+
+    return {
+        "storefront_id": storefront_id,
+        "total_clicks": len(rows),
+        "hotel_clicks": sum(1 for r in rows if r["link_type"] == "hotel"),
+        "flight_clicks": sum(1 for r in rows if r["link_type"] == "flight"),
+        "clicks_last_30_days": recent,
+        "by_link": by_link,
+    }

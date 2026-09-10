@@ -1,12 +1,19 @@
 import { ArrowRight, ArrowUpRight, Plane } from "lucide-react";
 
+import { TrackedBookingLink } from "@/app/components/TrackedBookingLink";
 import type { FlightLink } from "@/app/lib/types";
 
 /**
  * Deliberately lighter than HotelCard: flights are the supporting act on a
  * storefront that has hotels, and only carry the page when it has none.
  */
-export function FlightCard({ link }: { link: FlightLink }) {
+export function FlightCard({
+  link,
+  storefrontId,
+}: {
+  link: FlightLink;
+  storefrontId: string;
+}) {
   const destination = link.destination_country
     ? `${link.destination_city}, ${link.destination_country}`
     : link.destination_city;
@@ -32,11 +39,11 @@ export function FlightCard({ link }: { link: FlightLink }) {
         )}
       </div>
 
-      <a
+      <TrackedBookingLink
         href={link.booking_url}
-        target="_blank"
-        /* `sponsored` is the correct rel for paid/affiliate outbound links. */
-        rel="sponsored noopener noreferrer"
+        storefrontId={storefrontId}
+        linkId={link.id}
+        linkType="flight"
         className="inline-flex shrink-0 items-center gap-1.5 rounded-xl border border-clay/30 px-4 py-2.5 text-sm font-medium text-clay-deep transition-colors hover:bg-clay hover:text-paper-raised focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-clay-deep"
       >
         Find flights
@@ -45,7 +52,7 @@ export function FlightCard({ link }: { link: FlightLink }) {
           aria-hidden
         />
         <span className="sr-only"> to {destination} (opens in a new tab)</span>
-      </a>
+      </TrackedBookingLink>
     </article>
   );
 }
