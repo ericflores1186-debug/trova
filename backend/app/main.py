@@ -127,13 +127,20 @@ async def generate_storefront(payload: GenerateStorefrontRequest) -> GenerateSto
     )
     creator_id = creator["id"]
     creator_marker = (creator.get("travelpayouts_marker") or "").strip()
-    marker_used = creator_marker or config.TRAVELPAYOUTS_MARKER
+    base_marker = creator_marker or config.TRAVELPAYOUTS_MARKER
+
+    # Travelpayouts pays one account per marker, so a split cannot happen at
+    # the link. Instead the marker carries a SubID naming the creator --
+    # "572600.wanderlust" -- and the Performance report breaks earnings down
+    # by it, which is what the monthly payout is calculated from.
+    creator_subid = (creator.get("subid") or "").strip()
+    marker_used = f"{base_marker}.{creator_subid}" if creator_subid else base_marker
 
     if not creator_marker:
         logger.info(
-            "Creator %s has no marker; falling back to the platform marker %s",
+            "Creator %s billing to platform marker as %s",
             creator_id,
-            config.TRAVELPAYOUTS_MARKER,
+            marker_used,
         )
 
     linked_hotels = affiliate.attach_booking_urls(found.hotels, marker_used)

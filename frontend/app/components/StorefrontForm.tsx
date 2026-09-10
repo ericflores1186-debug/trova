@@ -177,15 +177,17 @@ export function StorefrontForm() {
               value={marker}
               onChange={(e) => setMarker(e.target.value.replace(/\D/g, ""))}
               disabled={isPending}
-              placeholder="Travelpayouts marker (digits only)"
+              placeholder="Travelpayouts marker — optional"
               aria-label="Travelpayouts marker"
               className="w-full rounded-xl border border-sand bg-paper-raised px-4 py-2.5 text-sm text-ink outline-none transition-colors placeholder:text-ink-faint focus:border-clay disabled:opacity-60"
             />
             <p className="mt-2 text-xs leading-relaxed text-ink-faint">
               <strong className="font-medium text-ink-soft">
-                Add your marker to get paid.
+                Leave this blank unless you already have a Travelpayouts account.
               </strong>{" "}
-              It is the affiliate ID from your{" "}
+              By default Trova tracks what your storefronts earn and pays you
+              directly &mdash; no account, no waiting to reach their $200 minimum.
+              If you would rather be paid by{" "}
               <a
                 href="https://www.travelpayouts.com"
                 target="_blank"
@@ -194,9 +196,8 @@ export function StorefrontForm() {
               >
                 Travelpayouts
               </a>{" "}
-              account, and it decides who earns commission on every booking made
-              from this storefront. Without it, commission goes to Trova instead of
-              you. Saved against your handle, so you only enter it once.
+              instead, put your marker here and commission goes straight to them.
+              Saved against your handle, so you only enter it once.
             </p>
           </div>
 

@@ -8,6 +8,7 @@ from postgrest.exceptions import APIError
 
 from app.db import get_client
 from app.errors import StorageFailed, StorefrontNotFound
+from app.services import subid as subid_util
 from app.models.schemas import (
     AffiliateLinkOut,
     FlightLinkOut,
@@ -17,6 +18,35 @@ from app.models.schemas import (
 )
 
 logger = logging.getLogger(__name__)
+
+
+def _free_subid(client, handle: str | None, name: str | None) -> str:
+    """Pick a SubID nobody else is using.
+
+    Two creators sharing one would merge their earnings in the Travelpayouts
+    report, which is exactly the number the monthly payout is based on.
+    """
+    base = subid_util.build(handle, name)
+    candidate = base
+    for attempt in range(2, 8):
+        try:
+            taken = (
+                client.table("creators")
+                .select("id")
+                .eq("subid", candidate)
+                .limit(1)
+                .execute()
+            )
+        except APIError:
+            # Column missing (migration not run) -- let the insert surface it.
+            return candidate
+        if not taken.data:
+            return candidate
+        candidate = subid_util.disambiguate(base, attempt)
+
+    # Seven collisions on one handle is not a real scenario; fall back to
+    # something guaranteed unique rather than loop forever.
+    return subid_util.build(None, None)
 
 
 def upsert_creator(
@@ -39,13 +69,20 @@ def upsert_creator(
         if handle:
             existing = (
                 client.table("creators")
-                .select("id, name, youtube_handle, travelpayouts_marker")
+                .select("id, name, youtube_handle, travelpayouts_marker, subid")
                 .eq("youtube_handle", handle)
                 .limit(1)
                 .execute()
             )
             if existing.data:
                 row = existing.data[0]
+                if not row.get("subid"):
+                    backfilled = _free_subid(client, handle, row.get("name"))
+                    client.table("creators").update({"subid": backfilled}).eq(
+                        "id", row["id"]
+                    ).execute()
+                    row["subid"] = backfilled
+                    logger.info("Backfilled subid %r for creator %s", backfilled, row["id"])
                 if marker and marker != row.get("travelpayouts_marker"):
                     updated = (
                         client.table("creators")
@@ -64,6 +101,7 @@ def upsert_creator(
                     "name": display_name,
                     "youtube_handle": handle,
                     "travelpayouts_marker": marker,
+                    "subid": _free_subid(client, handle, display_name),
                 }
             )
             .execute()
