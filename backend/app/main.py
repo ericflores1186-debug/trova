@@ -21,7 +21,7 @@ from app.models.schemas import (
     StorefrontOut,
     StorefrontStats,
 )
-from app.services import affiliate, extraction, storage, transcript
+from app.services import affiliate, destinations, extraction, storage, transcript
 
 logging.basicConfig(
     level=logging.INFO,
@@ -143,8 +143,15 @@ async def generate_storefront(payload: GenerateStorefrontRequest) -> GenerateSto
             marker_used,
         )
 
+    # A hotel review narrates no travel, so extraction finds no flights -- but
+    # a viewer who wants that hotel still has to get there. Every hotel implies
+    # a destination; the airport lookup then decides which are real.
+    flights = destinations.merge(
+        found.flights, destinations.candidates_from_hotels(found.hotels)
+    )
+
     linked_hotels = affiliate.attach_booking_urls(found.hotels, marker_used)
-    linked_flights = affiliate.attach_flight_urls(found.flights, marker_used)
+    linked_flights = affiliate.attach_flight_urls(flights, marker_used)
 
     video_url = f"https://www.youtube.com/watch?v={video_id}"
     storefront_id = storage.create_storefront(
