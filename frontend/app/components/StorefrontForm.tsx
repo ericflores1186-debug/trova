@@ -186,7 +186,7 @@ export function StorefrontForm() {
                 Leave this blank unless you already have a Travelpayouts account.
               </strong>{" "}
               By default Trova tracks what your storefronts earn and pays you
-              directly &mdash; no account, no waiting to reach their $200 minimum.
+              directly &mdash; nothing to sign up for, no approval to wait on.
               If you would rather be paid by{" "}
               <a
                 href="https://www.travelpayouts.com"

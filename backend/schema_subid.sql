@@ -10,7 +10,8 @@
 -- each creator their share.
 --
 -- Creators need no Travelpayouts account at all, and their first payout is not
--- gated behind clearing a $200 threshold on their own bookings.
+-- gated behind clearing Travelpayouts' own minimum on their own bookings --
+-- which varies by payout method, $50 for PayPal in their documented example.
 --
 -- The SubID is stored rather than derived from the handle, so that a creator
 -- renaming their channel does not silently break the attribution history of
