@@ -1,8 +1,10 @@
 # Trova
 
 Turn a travel video into a bookable storefront. Paste a YouTube link, and Trova
-reads the transcript, finds every hotel the creator named, and builds a
-shareable page with an affiliate booking link for each stay.
+reads the transcript, finds every hotel the creator named and every city they
+flew to, and builds a shareable page with an affiliate booking link for each.
+
+**Live at [trovastays.app](https://trovastays.app).**
 
 ```
 frontend/   Next.js App Router + Tailwind v4   (see frontend/README.md)
@@ -11,9 +13,17 @@ backend/    FastAPI + Claude + Supabase        (see backend/README.md)
 
 ## Quick start
 
-**1. Database** — run [`backend/schema.sql`](backend/schema.sql) in the Supabase
-SQL editor. It creates `creators`, `storefronts`, `affiliate_links` and enables
-RLS with public read / no public write.
+**1. Database** — run these in the Supabase SQL editor, in order. Each is safe
+to re-run.
+
+| File | Adds |
+| --- | --- |
+| [`schema.sql`](backend/schema.sql) | `creators`, `storefronts`, `affiliate_links`, RLS |
+| [`schema_flights.sql`](backend/schema_flights.sql) | `flight_links` |
+| [`schema_flight_iata.sql`](backend/schema_flight_iata.sql) | destination IATA codes |
+| [`schema_creator_marker.sql`](backend/schema_creator_marker.sql) | per-creator markers |
+| [`schema_subid.sql`](backend/schema_subid.sql) | per-creator SubIDs |
+| [`schema_clicks.sql`](backend/schema_clicks.sql) | outbound click tracking |
 
 **2. Backend**
 
@@ -32,7 +42,7 @@ cp .env.local.example .env.local   # fill in Supabase URL + PUBLISHABLE key
 npm run dev
 ```
 
-Open http://localhost:3000.
+Open http://localhost:3000. Production runs at trovastays.app.
 
 ## How a storefront gets built
 

@@ -67,18 +67,44 @@ remove it from git history.
 
 4. Deploy. You get `https://trova-<something>.vercel.app`.
 
-**Then go back to Render** and set `CORS_ORIGINS` to that exact Vercel URL —
-scheme included, no trailing slash:
+**Then go back to Render** and set `CORS_ORIGINS` to that exact URL — scheme
+included, no trailing slash. Trova currently runs on a custom domain, so the
+live value is:
 
 ```
-CORS_ORIGINS=https://trova-abc123.vercel.app
+CORS_ORIGINS=https://trovastays.app,https://www.trovastays.app
 ```
 
 Render redeploys. Until you do this, the dashboard loads but every "Build
 storefront" fails with a CORS error in the browser console. This is the single
 most common way a first deploy goes wrong.
 
-Using a custom domain later? Add it to `CORS_ORIGINS` too, comma-separated.
+---
+
+## 2.5 Custom domain
+
+Trova runs on **trovastays.app**. The old `trova-alpha.vercel.app` redirects to
+it, so storefront links shared before the move still work, path and all.
+
+Adding or changing a domain breaks two things unless you update them together:
+
+| Where | Variable | Value |
+| --- | --- | --- |
+| Render | `CORS_ORIGINS` | `https://trovastays.app,https://www.trovastays.app` |
+| Vercel | `NEXT_PUBLIC_SITE_URL` | `https://trovastays.app` |
+
+Miss the Render one and the site loads normally while every "Build storefront"
+fails — the same CORS trap as the first deploy, which is easy to forget the
+second time.
+
+**The domain belongs in exactly one variable.** `NEXT_PUBLIC_SITE_URL` is the
+only place `trovastays.app` should ever appear. `NEXT_PUBLIC_SUPABASE_URL`
+always points at `supabase.co` and `NEXT_PUBLIC_API_URL` at `onrender.com` —
+overwriting either with the site URL breaks every storefront page, and the
+failure looks like a database fault rather than a typo.
+
+On Vercel, every `NEXT_PUBLIC_*` variable must be type **Config**, not Secret.
+They ship to the browser by definition, and Vercel rejects them otherwise.
 
 ---
 
@@ -186,8 +212,8 @@ take screenshots with it masked.
 
 ## 4. Verify the deploy
 
-- [ ] `https://<render-url>/health` returns ok
-- [ ] Vercel dashboard loads and looks right
+- [ ] `https://trova-api.onrender.com/health` returns ok, with the expected commit
+- [ ] The dashboard loads at your live domain
 - [ ] Pasting a captioned travel video produces a storefront (needs §3.5)
 - [ ] The storefront URL opens in a **private window** (proves the publishable
       key and RLS work for a stranger, not just for you)
