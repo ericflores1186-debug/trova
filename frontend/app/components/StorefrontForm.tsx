@@ -6,6 +6,7 @@ import {
   AlertCircle,
   ArrowRight,
   Check,
+  Instagram,
   Link2,
   Loader2,
   Sparkles,
@@ -60,7 +61,14 @@ export function StorefrontForm() {
   const platform = detectPlatform(trimmedUrl);
   const looksValid = platform !== null;
   const showFormatHint = trimmedUrl.length > 6 && !looksValid;
-  const PlatformIcon = platform === "tiktok" ? TikTokIcon : platform === "youtube" ? Youtube : Link2;
+  const PlatformIcon =
+    platform === "tiktok"
+      ? TikTokIcon
+      : platform === "instagram"
+        ? Instagram
+        : platform === "youtube"
+          ? Youtube
+          : Link2;
 
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
@@ -111,7 +119,7 @@ export function StorefrontForm() {
                 value={videoUrl}
                 onChange={(e) => setVideoUrl(e.target.value)}
                 disabled={isPending}
-                placeholder="Paste a YouTube or TikTok link"
+                placeholder="Paste a YouTube, TikTok or Instagram link"
                 aria-label="Video URL"
                 aria-invalid={showFormatHint}
                 className="w-full bg-transparent text-base text-ink outline-none placeholder:text-ink-faint disabled:opacity-60"
@@ -145,7 +153,8 @@ export function StorefrontForm() {
         {showFormatHint && (
           <p className="px-1 text-sm text-ink-faint">
             That doesn&apos;t look like a video link yet &mdash; try
-            youtube.com/watch?v=&hellip; or tiktok.com/@name/video/&hellip;
+            youtube.com/watch?v=&hellip;, tiktok.com/@name/video/&hellip; or
+            instagram.com/reel/&hellip;
           </p>
         )}
 
@@ -207,7 +216,8 @@ export function StorefrontForm() {
 
           <p className="mt-3 text-xs text-ink-faint">
             All optional. A handle groups every storefront you make under one creator
-            &mdash; for a TikTok link, it&apos;s read from the video if you leave it blank.
+            &mdash; for a TikTok or Instagram link, it&apos;s read from the post if you leave
+            it blank.
           </p>
         </details>
       </form>

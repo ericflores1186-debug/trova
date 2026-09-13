@@ -21,7 +21,15 @@ from app.models.schemas import (
     StorefrontOut,
     StorefrontStats,
 )
-from app.services import affiliate, destinations, extraction, storage, tiktok, transcript
+from app.services import (
+    affiliate,
+    destinations,
+    extraction,
+    instagram,
+    storage,
+    tiktok,
+    transcript,
+)
 
 logging.basicConfig(
     level=logging.INFO,
@@ -31,7 +39,7 @@ logger = logging.getLogger(__name__)
 
 app = FastAPI(
     title="Creator Storefront API",
-    description="Turns a YouTube or TikTok travel video into an affiliate hotel storefront.",
+    description="Turns a YouTube, TikTok or Instagram travel post into an affiliate hotel storefront.",
     version="0.1.0",
 )
 
@@ -106,15 +114,26 @@ async def generate_storefront(payload: GenerateStorefrontRequest) -> GenerateSto
     """Video text -> AI extraction -> affiliate links -> Supabase."""
     post = None
     if tiktok.is_tiktok_url(payload.video_url):
+        source, platform = tiktok, "tiktok"
         post = tiktok.fetch_post(payload.video_url)
-        logger.info("Generating storefront for TikTok post %s", post.post_id)
-        platform = "tiktok"
+        found = extraction.extract_short_video(post.extraction_document(), post.slides)
+    elif instagram.is_instagram_url(payload.video_url):
+        source, platform = instagram, "instagram"
+        post = instagram.fetch_post(payload.video_url)
+        found = extraction.extract_short_video(
+            post.extraction_document(),
+            post.images,
+            platform="Instagram",
+            images_kind=post.images_kind,
+        )
+
+    if post:
+        logger.info("Generating storefront for %s post %s", platform, post.post_id)
         video_url = post.url
         video_title = post.title
-        found = extraction.extract_short_video(post.extraction_document(), post.slides)
         # The post names its own author, so a creator who skips the optional
         # handle field is still credited -- and paid -- as themselves.
-        creator_handle = tiktok.normalise_handle(payload.creator_handle) or post.author_handle
+        creator_handle = source.normalise_handle(payload.creator_handle) or post.author_handle
         creator_name = payload.creator_name or post.author_name
     else:
         video_id = transcript.parse_video_id(payload.video_url)
@@ -129,11 +148,17 @@ async def generate_storefront(payload: GenerateStorefrontRequest) -> GenerateSto
     # Flights carry the storefront when a video never names where they stayed,
     # so only a video with neither is a dead end.
     if not found.hotels and not found.flights:
-        if post:
+        if platform == "tiktok":
             raise NoHotelsFound(
                 "No hotels or destinations were named in this TikTok -- not in the "
                 "caption, the on-screen text or slides, the tagged location, or what "
                 "was said. Try one that names where they stayed."
+            )
+        if platform == "instagram":
+            raise NoHotelsFound(
+                "No hotels or destinations were named in this post's caption or "
+                "images. Trova can't hear what's said in a Reel, so try one whose "
+                "caption or cover names where they stayed."
             )
         raise NoHotelsFound(
             "No hotels or destinations were mentioned in this video. "
@@ -178,12 +203,12 @@ async def generate_storefront(payload: GenerateStorefrontRequest) -> GenerateSto
 
     thumbnail_url = None
     if post:
-        # TikTok's cover links expire within two days, so the image is copied
-        # rather than linked. Done only now, once the post is known to be
-        # worth a storefront.
-        cover = tiktok.download_cover(post)
+        # TikTok's and Instagram's cover links expire within days, so the image
+        # is copied rather than linked. Done only now, once the post is known
+        # to be worth a storefront.
+        cover = source.download_cover(post)
         if cover:
-            thumbnail_url = storage.upload_cover(f"tiktok/{post.post_id}", *cover)
+            thumbnail_url = storage.upload_cover(f"{platform}/{post.post_id}", *cover)
 
     storefront_id = storage.create_storefront(
         creator_id=creator_id,

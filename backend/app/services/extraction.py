@@ -127,13 +127,13 @@ _USER_TEMPLATE = (
     "<transcript>\n{text}\n</transcript>"
 )
 
-# A TikTok is not one transcript. Each part is labelled so the model can weigh
-# them: a tagged hotel is a deliberate statement, a misheard name in the
-# auto-captions is not.
+# A TikTok or Instagram post is not one transcript. Each part is labelled so
+# the model can weigh them: a tagged hotel is a deliberate statement, a
+# misheard name in the auto-captions is not.
 _SHORT_VIDEO_TEMPLATE = (
     "Extract every named lodging and every destination travelled to in this "
-    "TikTok travel post.\n\n"
-    "A TikTok arrives in labelled parts instead of one transcript: the "
+    "{platform} travel post.\n\n"
+    "The post arrives in labelled parts instead of one transcript: the "
     "creator's written <caption>, the <on_screen_text> shown over the video, "
     "the <tagged_location> they attached, and the <spoken_words>. Any part can "
     "be missing. All of them describe the same video, so a property named in "
@@ -146,14 +146,29 @@ _SHORT_VIDEO_TEMPLATE = (
     "or loyalty programme on its own, such as @Marriott Bonvoy.\n"
     "- Spoken words are auto-transcribed and mishear names. When the caption or "
     "on-screen text names the same place, use that spelling.\n\n"
-    "{slides_note}"
+    "{images_note}"
     "{text}"
 )
 
+# Images invite identifying a hotel by how it looks. A storefront link to a
+# guessed property is worse than no link, so only written text counts. And
+# unusual names get "corrected" into familiar words -- "Casa Lawa" on a slide
+# came back as "Casa Lava" -- so names are copied exactly as written.
 _SLIDES_NOTE = (
     "This is a photo post, and its slides are attached above as images, in "
     "order. Read the text written on each slide: slideshow creators often name "
-    "each property only there, with its location beneath it.\n\n"
+    "each property only there, with its location beneath it. Only written text "
+    "counts -- never identify a property from how it looks. Copy each name "
+    "exactly as written, letter for letter, even when it resembles a more "
+    "familiar word.\n\n"
+)
+
+_COVER_NOTE = (
+    "The post's cover image is attached above. Read any text written on it: "
+    "creators often put the property's name or city there. Only written text "
+    "counts -- never identify a property from how it looks. Copy each name "
+    "exactly as written, letter for letter, even when it resembles a more "
+    "familiar word.\n\n"
 )
 
 
@@ -327,32 +342,40 @@ def extract_travel(transcript: str) -> TravelExtraction:
 
 
 def extract_short_video(
-    document: str, slides: list[tuple[bytes, str]] | None = None
+    document: str,
+    images: list[tuple[bytes, str]] | None = None,
+    *,
+    platform: str = "TikTok",
+    images_kind: str = "slides",
 ) -> TravelExtraction:
-    """Lodgings and destinations from a TikTok's labelled parts and slides.
+    """Lodgings and destinations from a TikTok or Instagram post.
 
-    Not chunked: a TikTok's caption, on-screen text and captions together run
-    to a few thousand characters, far inside one request.
+    `images` are the post's slides or its cover, as `images_kind` says.
+
+    Not chunked: a post's caption, on-screen text and captions together run to
+    a few thousand characters, far inside one request.
 
     Deliberately extracts nothing else. Asking for a page title in the same
     structured response made the model run away inside the title string --
     pages of repeated text -- and return no hotels at all.
     """
-    if not document.strip() and not slides:
+    if not document.strip() and not images:
         return TravelExtraction()
 
     if config.MOCK_EXTRACTION:
         logger.warning(
             "MOCK_EXTRACTION is on -- returning canned data, ignoring the "
-            "%d-char TikTok post. Unset it in .env for real results.",
+            "%d-char %s post. Unset it in .env for real results.",
             len(document),
+            platform,
         )
         return TravelExtraction(hotels=list(_MOCK_HOTELS), flights=list(_MOCK_FLIGHTS))
 
-    # str.replace, not format(): the note is fixed text, and {text} must
-    # survive to be filled in by _extract_chunk.
-    template = _SHORT_VIDEO_TEMPLATE.replace("{slides_note}", _SLIDES_NOTE if slides else "")
-    result = _extract_chunk(document, template=template, images=slides)
+    # str.replace, not format(): {text} must survive to be filled in by
+    # _extract_chunk.
+    note = {"slides": _SLIDES_NOTE, "cover": _COVER_NOTE}.get(images_kind, "") if images else ""
+    template = _SHORT_VIDEO_TEMPLATE.replace("{platform}", platform).replace("{images_note}", note)
+    result = _extract_chunk(document, template=template, images=images)
     return TravelExtraction(
         hotels=_dedupe_hotels(result.hotels),
         flights=_dedupe_flights(result.flights),

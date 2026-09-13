@@ -1,7 +1,8 @@
 # Creator Storefront -- Backend (Phase 1)
 
-FastAPI service that turns a YouTube or TikTok travel video into an affiliate
-hotel storefront: video text -> Claude extraction -> Travelpayouts links -> Supabase.
+FastAPI service that turns a YouTube, TikTok or Instagram travel post into an
+affiliate hotel storefront: post text and images -> Claude extraction ->
+Travelpayouts links -> Supabase.
 
 ## Setup
 
@@ -38,9 +39,13 @@ curl -X POST http://localhost:8000/api/generate-storefront \
   -d '{"video_url":"https://www.youtube.com/watch?v=VIDEO_ID","creator_name":"Wanderlust","creator_handle":"@wanderlust"}'
 ```
 
-A TikTok link works the same way. `creator_handle` is optional there: when
-omitted, the post's own author is used. (`youtube_handle` is still accepted as
-an older name for `creator_handle`.)
+TikTok and Instagram links work the same way. `creator_handle` is optional
+there: when omitted, the post's own author is used. (`youtube_handle` is still
+accepted as an older name for `creator_handle`.)
+
+Instagram posts are read from what a logged-out visitor can see: the caption
+and the cover or carousel images, never the audio. A hotel named only out loud
+in a Reel is not found.
 
 ## Layout
 
@@ -54,6 +59,7 @@ app/
   services/
     transcript.py        YouTube URL parsing, transcript fetch, oEmbed title
     tiktok.py            TikTok post: caption, on-screen text, location, captions, slides, cover
+    instagram.py         Instagram post or Reel: caption, cover or carousel images
     extraction.py        Claude structured extraction
     affiliate.py         Travelpayouts link mapping (mocked by default)
     storage.py           Supabase reads/writes
@@ -65,9 +71,9 @@ Every failure returns `{"code": "...", "message": "..."}`:
 
 | Status | Code | When |
 | --- | --- | --- |
-| 400 | `invalid_video_url` | URL is not a recognisable YouTube or TikTok video link |
+| 400 | `invalid_video_url` | URL is not a recognisable YouTube, TikTok or Instagram post link |
 | 422 | `transcript_unavailable` | YouTube subtitles disabled, private, or region-locked |
-| 422 | `video_unavailable` | TikTok post private, deleted, or not served; dead share link |
+| 422 | `video_unavailable` | TikTok or Instagram post private, deleted, or not served; dead share link |
 | 422 | `no_hotels_found` | The video names no lodging or destination |
 | 502 | `extraction_failed` | Anthropic API error |
 | 404 | `storefront_not_found` | Unknown storefront ID |

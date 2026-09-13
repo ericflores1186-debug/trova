@@ -1,6 +1,6 @@
 import { parseVideoId } from "./youtube";
 
-export type Platform = "youtube" | "tiktok";
+export type Platform = "youtube" | "tiktok" | "instagram";
 
 // Mirrors backend/app/services/tiktok.py, which has the final say: this only
 // decides whether a pasted link is worth sending.
@@ -34,9 +34,26 @@ export function isTikTokUrl(url: string): boolean {
   );
 }
 
+// Mirrors backend/app/services/instagram.py: a post, Reel or IGTV link,
+// optionally after the username, or an app share link.
+const INSTAGRAM_POST = /^\/(?:(?!share\/)[\w.]+\/)?(?:reels?|p|tv)\/[\w-]{10,}(?:\/|$)/;
+const INSTAGRAM_SHARE = /^\/share\/(?:\w+\/)?[\w-]+\/?$/;
+
+/** True for an Instagram post or Reel link, including instagram.com/share links. */
+export function isInstagramUrl(url: string): boolean {
+  const parsed = parseUrl(url);
+  if (!parsed) return false;
+
+  const host = parsed.hostname.toLowerCase().replace(/^(www\.|m\.)/, "");
+  if (host !== "instagram.com" && host !== "instagr.am") return false;
+
+  return INSTAGRAM_POST.test(parsed.pathname) || INSTAGRAM_SHARE.test(parsed.pathname);
+}
+
 /** Which supported platform a video link belongs to, or null. */
 export function detectPlatform(url: string): Platform | null {
   if (parseVideoId(url)) return "youtube";
   if (isTikTokUrl(url)) return "tiktok";
+  if (isInstagramUrl(url)) return "instagram";
   return null;
 }

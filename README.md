@@ -1,8 +1,9 @@
 # Trova
 
-Turn a travel video into a bookable storefront. Paste a YouTube or TikTok link,
-and Trova reads the video, finds every hotel the creator named and every city
-they flew to, and builds a shareable page with an affiliate booking link for each.
+Turn a travel video into a bookable storefront. Paste a YouTube, TikTok or
+Instagram link, and Trova reads the post, finds every hotel the creator named and
+every city they flew to, and builds a shareable page with an affiliate booking
+link for each.
 
 **Live at [trovastays.app](https://trovastays.app).**
 
@@ -25,6 +26,7 @@ to re-run.
 | [`schema_subid.sql`](backend/schema_subid.sql) | per-creator SubIDs |
 | [`schema_clicks.sql`](backend/schema_clicks.sql) | outbound click tracking |
 | [`schema_tiktok.sql`](backend/schema_tiktok.sql) | TikTok handles, cover images + `video-covers` bucket |
+| [`schema_instagram.sql`](backend/schema_instagram.sql) | Instagram handles |
 
 **2. Backend**
 
@@ -48,14 +50,14 @@ Open http://localhost:3000. Production runs at trovastays.app.
 ## How a storefront gets built
 
 ```
-  YouTube URL                            TikTok URL
-      │                                      │
-      ▼                                      ▼
-  youtube-transcript-api                 post page ──▶ caption, on-screen text,
-      │  transcript text                     │         tagged location, captions,
-      │                                      │         photo-post slides (images)
-      └──────────────────┬───────────────────┘
-                         ▼
+  YouTube URL              TikTok URL                     Instagram URL
+      │                        │                               │
+      ▼                        ▼                               ▼
+  youtube-transcript-api   post page: caption, on-screen   embed page: caption,
+      │  transcript text   text, tagged location, spoken   cover or carousel
+      │                    captions, slideshow images      images (no audio)
+      └────────────────────────┬───────────────────────────────┘
+                               ▼
   Claude (structured outputs) ──▶ [{ hotel_name, location }, ...]
       │
       ▼

@@ -26,4 +26,7 @@ youtube-transcript-api>=1.2.3,<2
 
 # --- HTTP + config ---
 requests>=2.32,<3
+# Browser TLS impersonation. Instagram serves an empty app shell to clients
+# that do not look like Chrome, `requests` included.
+curl_cffi>=0.7,<1
 python-dotenv>=1.0,<2

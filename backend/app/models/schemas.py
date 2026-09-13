@@ -75,12 +75,13 @@ class FlightWithLink(Flight):
 class GenerateStorefrontRequest(BaseModel):
     video_url: str = Field(
         description=(
-            "A YouTube URL or bare 11-character video ID, or a TikTok video URL "
-            "including vm.tiktok.com share links."
+            "A YouTube URL or bare 11-character video ID, a TikTok URL including "
+            "vm.tiktok.com share links, or an Instagram Reel or post URL."
         ),
         examples=[
             "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
             "https://www.tiktok.com/@creator/video/7412783059658951967",
+            "https://www.instagram.com/reel/DQu7CZsjXdN/",
         ],
     )
     creator_name: Optional[str] = Field(default=None, max_length=200)
@@ -91,8 +92,8 @@ class GenerateStorefrontRequest(BaseModel):
         validation_alias=AliasChoices("creator_handle", "youtube_handle"),
         description=(
             "Stable identifier for the creator on the video's platform, e.g. "
-            "'@wanderlust'. Used to de-duplicate creators. For TikTok, defaults "
-            "to the post's author when omitted."
+            "'@wanderlust'. Used to de-duplicate creators. For TikTok and "
+            "Instagram, defaults to the post's author when omitted."
         ),
     )
     travelpayouts_marker: Optional[str] = Field(

@@ -23,11 +23,12 @@ type PageProps = {
 
 /**
  * The video's picture. A YouTube thumbnail is derived from the video ID; a
- * TikTok cover was copied into storage when the storefront was built, because
- * TikTok's own cover links expire.
+ * TikTok or Instagram cover was copied into storage when the storefront was
+ * built, because those platforms' own cover links expire.
  */
 function coverFor(storefront: Storefront): { src: string; vertical: boolean } | null {
-  if (detectPlatform(storefront.video_url) === "tiktok") {
+  const platform = detectPlatform(storefront.video_url);
+  if (platform === "tiktok" || platform === "instagram") {
     return storefront.thumbnail_url ? { src: storefront.thumbnail_url, vertical: true } : null;
   }
   const videoId = parseVideoId(storefront.video_url);

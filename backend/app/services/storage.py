@@ -24,6 +24,13 @@ logger = logging.getLogger(__name__)
 COVERS_BUCKET = "video-covers"
 _COVER_EXTENSIONS = {"image/jpeg": "jpg", "image/png": "png", "image/webp": "webp"}
 
+# Each platform keys creators on its own handle column; see upsert_creator.
+_HANDLE_COLUMNS = {
+    "youtube": "youtube_handle",
+    "tiktok": "tiktok_handle",
+    "instagram": "instagram_handle",
+}
+
 
 def _free_subid(client, handle: str | None, name: str | None) -> str:
     """Pick a SubID nobody else is using.
@@ -58,12 +65,12 @@ def upsert_creator(
     name: str | None,
     handle: str | None,
     travelpayouts_marker: str | None = None,
-    platform: Literal["youtube", "tiktok"] = "youtube",
+    platform: Literal["youtube", "tiktok", "instagram"] = "youtube",
 ) -> dict:
     """Return the creator row, reusing an existing one when the handle matches.
 
     Handles are matched per platform. @wanderlust on TikTok is not necessarily
-    @wanderlust on YouTube, and treating them as one creator would merge two
+    @wanderlust on Instagram, and treating them as one creator would merge two
     people's earnings; the same person on both platforms gets two SubIDs
     instead, which only means adding two lines together at payout time.
 
@@ -72,7 +79,7 @@ def upsert_creator(
     them just because the field was left blank.
     """
     client = get_client()
-    handle_column = "tiktok_handle" if platform == "tiktok" else "youtube_handle"
+    handle_column = _HANDLE_COLUMNS[platform]
     handle = (handle or "").strip() or None
     display_name = (name or "").strip() or handle or "Unknown creator"
     marker = (travelpayouts_marker or "").strip() or None
@@ -120,11 +127,15 @@ def upsert_creator(
         )
     except APIError as exc:
         logger.exception("Creator upsert failed")
-        if "tiktok_handle" in str(exc):
-            raise StorageFailed(
-                "The creators table has no tiktok_handle column. Run "
-                "backend/schema_tiktok.sql in the Supabase SQL editor."
-            ) from exc
+        for column, migration in (
+            ("tiktok_handle", "schema_tiktok.sql"),
+            ("instagram_handle", "schema_instagram.sql"),
+        ):
+            if column in str(exc):
+                raise StorageFailed(
+                    f"The creators table has no {column} column. Run "
+                    f"backend/{migration} in the Supabase SQL editor."
+                ) from exc
         if "travelpayouts_marker" in str(exc):
             raise StorageFailed(
                 "The creators table has no travelpayouts_marker column. Run "
