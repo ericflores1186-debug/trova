@@ -1,8 +1,10 @@
 import { getSupabase } from "./supabase";
 import type { Storefront } from "./types";
 
+// "*" for the storefront's own columns, so a newly added one never breaks every
+// page before its migration has been run.
 const STOREFRONT_SELECT =
-  "id, creator_id, video_url, video_title, created_at, marker_used, " +
+  "*, " +
   "affiliate_links(id, hotel_name, location, booking_url, created_at), " +
   "flight_links(id, destination_city, destination_country, destination_iata, origin_city, airline, booking_url, created_at)";
 

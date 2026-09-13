@@ -15,7 +15,7 @@ export const metadata: Metadata = {
     template: "%s · Trova",
   },
   description:
-    "Paste a YouTube video. Trova finds every hotel you mentioned and turns them into a shareable, bookable storefront.",
+    "Paste a TikTok or YouTube video. Trova finds every hotel you mentioned and turns them into a shareable, bookable storefront.",
 };
 
 export default function RootLayout({

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+from typing import Literal
 
 from postgrest.exceptions import APIError
 
@@ -18,6 +19,10 @@ from app.models.schemas import (
 )
 
 logger = logging.getLogger(__name__)
+
+# Created by schema_tiktok.sql. Public, so covers load without a signed URL.
+COVERS_BUCKET = "video-covers"
+_COVER_EXTENSIONS = {"image/jpeg": "jpg", "image/png": "png", "image/webp": "webp"}
 
 
 def _free_subid(client, handle: str | None, name: str | None) -> str:
@@ -51,17 +56,24 @@ def _free_subid(client, handle: str | None, name: str | None) -> str:
 
 def upsert_creator(
     name: str | None,
-    youtube_handle: str | None,
+    handle: str | None,
     travelpayouts_marker: str | None = None,
+    platform: Literal["youtube", "tiktok"] = "youtube",
 ) -> dict:
     """Return the creator row, reusing an existing one when the handle matches.
+
+    Handles are matched per platform. @wanderlust on TikTok is not necessarily
+    @wanderlust on YouTube, and treating them as one creator would merge two
+    people's earnings; the same person on both platforms gets two SubIDs
+    instead, which only means adding two lines together at payout time.
 
     A supplied marker updates the stored one; omitting it keeps whatever the
     creator already had, so a later storefront does not silently stop paying
     them just because the field was left blank.
     """
     client = get_client()
-    handle = (youtube_handle or "").strip() or None
+    handle_column = "tiktok_handle" if platform == "tiktok" else "youtube_handle"
+    handle = (handle or "").strip() or None
     display_name = (name or "").strip() or handle or "Unknown creator"
     marker = (travelpayouts_marker or "").strip() or None
 
@@ -69,8 +81,8 @@ def upsert_creator(
         if handle:
             existing = (
                 client.table("creators")
-                .select("id, name, youtube_handle, travelpayouts_marker, subid")
-                .eq("youtube_handle", handle)
+                .select(f"id, name, {handle_column}, travelpayouts_marker, subid")
+                .eq(handle_column, handle)
                 .limit(1)
                 .execute()
             )
@@ -99,7 +111,7 @@ def upsert_creator(
             .insert(
                 {
                     "name": display_name,
-                    "youtube_handle": handle,
+                    handle_column: handle,
                     "travelpayouts_marker": marker,
                     "subid": _free_subid(client, handle, display_name),
                 }
@@ -108,6 +120,11 @@ def upsert_creator(
         )
     except APIError as exc:
         logger.exception("Creator upsert failed")
+        if "tiktok_handle" in str(exc):
+            raise StorageFailed(
+                "The creators table has no tiktok_handle column. Run "
+                "backend/schema_tiktok.sql in the Supabase SQL editor."
+            ) from exc
         if "travelpayouts_marker" in str(exc):
             raise StorageFailed(
                 "The creators table has no travelpayouts_marker column. Run "
@@ -122,30 +139,68 @@ def upsert_creator(
 
 
 def create_storefront(
-    creator_id: str, video_url: str, video_title: str, marker_used: str
+    creator_id: str,
+    video_url: str,
+    video_title: str,
+    marker_used: str,
+    thumbnail_url: str | None = None,
 ) -> str:
+    row = {
+        "creator_id": creator_id,
+        "video_url": video_url,
+        "video_title": video_title,
+        "marker_used": marker_used,
+    }
+    if thumbnail_url:
+        # Only sent when there is one, so YouTube storefronts keep saving on a
+        # database that has not had schema_tiktok.sql run yet.
+        row["thumbnail_url"] = thumbnail_url
+
     client = get_client()
     try:
-        created = (
-            client.table("storefronts")
-            .insert(
-                {
-                    "creator_id": creator_id,
-                    "video_url": video_url,
-                    "video_title": video_title,
-                    "marker_used": marker_used,
-                }
-            )
-            .execute()
-        )
+        created = client.table("storefronts").insert(row).execute()
     except APIError as exc:
         logger.exception("Storefront insert failed")
+        if "thumbnail_url" in str(exc):
+            raise StorageFailed(
+                "The storefronts table has no thumbnail_url column. Run "
+                "backend/schema_tiktok.sql in the Supabase SQL editor."
+            ) from exc
         raise StorageFailed(f"Could not save the storefront: {exc.message}") from exc
 
     if not created.data:
         raise StorageFailed("Could not save the storefront.")
 
     return created.data[0]["id"]
+
+
+def upload_cover(name: str, data: bytes, content_type: str) -> str | None:
+    """Copy a cover image into public storage and return its permanent URL.
+
+    TikTok's own cover links are signed and stop working after two days, so a
+    storefront that linked to one would lose its picture almost immediately.
+
+    Never raises: a storefront without its picture is still a storefront.
+    """
+    path = f"{name}.{_COVER_EXTENSIONS.get(content_type, 'jpg')}"
+    try:
+        bucket = get_client().storage.from_(COVERS_BUCKET)
+        bucket.upload(
+            path,
+            data,
+            {"content-type": content_type, "cache-control": "31536000", "upsert": "true"},
+        )
+        url = bucket.get_public_url(path)
+    except Exception as exc:
+        logger.warning(
+            "Could not store cover %s (%s: %s) -- the storefront will have no "
+            "picture. If the bucket is missing, run backend/schema_tiktok.sql.",
+            path,
+            type(exc).__name__,
+            str(exc)[:200],
+        )
+        return None
+    return url.rstrip("?") or None
 
 
 def create_affiliate_links(storefront_id: str, hotels: list[HotelWithLink]) -> list[AffiliateLinkOut]:
@@ -212,10 +267,9 @@ def get_storefront(storefront_id: str) -> StorefrontOut:
     try:
         result = (
             client.table("storefronts")
-            .select(
-                "id, creator_id, video_url, video_title, created_at, marker_used, "
-                "affiliate_links(*), flight_links(*)"
-            )
+            # "*" rather than a column list, so adding a column never breaks
+            # reads on a database whose migration has not run yet.
+            .select("*, affiliate_links(*), flight_links(*)")
             .eq("id", storefront_id)
             .limit(1)
             .execute()

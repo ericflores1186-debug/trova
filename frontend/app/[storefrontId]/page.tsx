@@ -8,6 +8,8 @@ import { HotelCard } from "@/app/components/HotelCard";
 import { ShareButton } from "@/app/components/ShareButton";
 import { Wordmark } from "@/app/components/Wordmark";
 import { getStorefront } from "@/app/lib/storefronts";
+import type { Storefront } from "@/app/lib/types";
+import { detectPlatform } from "@/app/lib/video";
 import { parseVideoId, thumbnailUrl } from "@/app/lib/youtube";
 
 // A storefront is usually opened seconds after it is created, so serve it
@@ -18,6 +20,19 @@ type PageProps = {
   // Next.js 15 passes route params as a Promise.
   params: Promise<{ storefrontId: string }>;
 };
+
+/**
+ * The video's picture. A YouTube thumbnail is derived from the video ID; a
+ * TikTok cover was copied into storage when the storefront was built, because
+ * TikTok's own cover links expire.
+ */
+function coverFor(storefront: Storefront): { src: string; vertical: boolean } | null {
+  if (detectPlatform(storefront.video_url) === "tiktok") {
+    return storefront.thumbnail_url ? { src: storefront.thumbnail_url, vertical: true } : null;
+  }
+  const videoId = parseVideoId(storefront.video_url);
+  return videoId ? { src: thumbnailUrl(videoId), vertical: false } : null;
+}
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { storefrontId } = await params;
@@ -34,7 +49,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     trips > 0 ? `${trips} ${trips === 1 ? "destination" : "destinations"}` : null,
   ].filter(Boolean);
   const description = `${parts.join(" and ")} from "${storefront.video_title}" — book them all in one place.`;
-  const videoId = parseVideoId(storefront.video_url);
+  const cover = coverFor(storefront);
 
   return {
     title: storefront.video_title,
@@ -43,7 +58,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
       title: `${storefront.video_title} · Trova`,
       description,
       type: "website",
-      images: videoId ? [{ url: thumbnailUrl(videoId) }] : undefined,
+      images: cover ? [{ url: cover.src }] : undefined,
     },
     twitter: {
       card: "summary_large_image",
@@ -61,7 +76,8 @@ export default async function StorefrontPage({ params }: PageProps) {
 
   const links = storefront.affiliate_links;
   const flights = storefront.flight_links ?? [];
-  const videoId = parseVideoId(storefront.video_url);
+  const cover = coverFor(storefront);
+  const hasVideo = detectPlatform(storefront.video_url) !== null;
 
   return (
     <main className="relative">
@@ -74,7 +90,11 @@ export default async function StorefrontPage({ params }: PageProps) {
         </header>
 
         {/* --- Video header ------------------------------------------------ */}
-        <section className="rise mt-14 grid gap-10 lg:grid-cols-[1.15fr_1fr] lg:items-center">
+        <section
+          className={`rise mt-14 grid gap-10 lg:items-center ${
+            cover?.vertical ? "lg:grid-cols-[1fr_auto]" : "lg:grid-cols-[1.15fr_1fr]"
+          }`}
+        >
           <div>
             <p className="text-xs font-medium uppercase tracking-[0.18em] text-clay">
               Stays from this video
@@ -97,7 +117,7 @@ export default async function StorefrontPage({ params }: PageProps) {
               , pulled straight from the video.
             </p>
 
-            {videoId && (
+            {hasVideo && (
               <a
                 href={storefront.video_url}
                 target="_blank"
@@ -110,18 +130,24 @@ export default async function StorefrontPage({ params }: PageProps) {
             )}
           </div>
 
-          {videoId && (
+          {cover && (
             <a
               href={storefront.video_url}
               target="_blank"
               rel="noopener noreferrer"
-              className="group relative block aspect-video overflow-hidden rounded-card border border-sand bg-sand"
+              className={`group relative block overflow-hidden rounded-card border border-sand bg-sand ${
+                // A vertical cover at full column width would be taller than
+                // the screen, so it is sized like a phone instead.
+                cover.vertical
+                  ? "aspect-[9/16] w-44 justify-self-center sm:w-52 lg:w-60"
+                  : "aspect-video"
+              }`}
             >
               <Image
-                src={thumbnailUrl(videoId)}
+                src={cover.src}
                 alt=""
                 fill
-                sizes="(max-width: 1024px) 100vw, 480px"
+                sizes={cover.vertical ? "240px" : "(max-width: 1024px) 100vw, 480px"}
                 className="object-cover transition-transform duration-500 group-hover:scale-[1.03]"
                 priority
               />

@@ -160,6 +160,12 @@ Using a different provider? Set `GENERIC_PROXY_HTTP_URL` and
 When no proxy is set and YouTube blocks a request, the API returns a 422 whose
 message says so explicitly, rather than blaming the video's captions.
 
+TikTok uses the same proxy settings, but only as a fallback: each TikTok
+request goes direct first and switches to the proxy if TikTok refuses it, so
+the metered proxy is not spent on requests that did not need it. If TikTok
+starts refusing both, Render's logs say which route failed and whether TikTok
+served a bot check.
+
 ---
 
 ## 3.6 Keep the free tier awake

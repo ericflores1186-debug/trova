@@ -11,12 +11,12 @@ const HOW_IT_WORKS = [
   {
     icon: Clapperboard,
     title: "Paste a video",
-    body: "Any YouTube travel video with captions turned on — a vlog, a hotel tour, a city guide.",
+    body: "A TikTok, or a YouTube video with captions turned on — a hotel tour, a room review, a city guide.",
   },
   {
     icon: Wand2,
     title: "Trova listens",
-    body: "It reads the transcript and pulls out every hotel, resort and stay you actually named.",
+    body: "It reads what you said — and on TikTok, your caption, on-screen text and tagged location — and pulls out every stay you named.",
   },
   {
     icon: Hotel,

@@ -123,7 +123,29 @@ words. Judge from context.\
 _USER_TEMPLATE = (
     "Extract every named lodging and every destination travelled to in this "
     "travel video transcript.\n\n"
-    "<transcript>\n{transcript}\n</transcript>"
+    "<transcript>\n{text}\n</transcript>"
+)
+
+# A TikTok is not one transcript. Each part is labelled so the model can weigh
+# them: a tagged hotel is a deliberate statement, a misheard name in the
+# auto-captions is not.
+_SHORT_VIDEO_TEMPLATE = (
+    "Extract every named lodging and every destination travelled to in this "
+    "TikTok travel post.\n\n"
+    "A TikTok arrives in labelled parts instead of one transcript: the "
+    "creator's written <caption>, the <on_screen_text> shown over the video, "
+    "the <tagged_location> they attached, and the <spoken_words>. Any part can "
+    "be missing. All of them describe the same video, so a property named in "
+    "any one part counts as mentioned.\n"
+    "- A tagged location whose type is a hotel, resort or other lodging names "
+    "the property the post is about. Include it, and take `location` from its "
+    "address.\n"
+    "- An @mention or hashtag can name a property, as in #fairmontorchidhawaii. "
+    "Count one only when it names a specific property -- never a hotel brand "
+    "or loyalty programme on its own, such as @Marriott Bonvoy.\n"
+    "- Spoken words are auto-transcribed and mishear names. When the caption or "
+    "on-screen text names the same place, use that spelling.\n\n"
+    "{text}"
 )
 
 
@@ -149,13 +171,13 @@ def _chunk(transcript: str, size: int) -> list[str]:
     return [chunk for chunk in chunks if chunk]
 
 
-def _extract_chunk(transcript: str) -> TravelExtraction:
+def _extract_chunk(transcript: str, template: str = _USER_TEMPLATE) -> TravelExtraction:
     try:
         response = _get_client().messages.parse(
             model=config.EXTRACTION_MODEL,
             max_tokens=_MAX_TOKENS,
             system=SYSTEM_PROMPT,
-            messages=[{"role": "user", "content": _USER_TEMPLATE.format(transcript=transcript)}],
+            messages=[{"role": "user", "content": template.format(text=transcript)}],
             output_format=TravelExtraction,
         )
     except anthropic.NotFoundError as exc:
@@ -273,6 +295,34 @@ def extract_travel(transcript: str) -> TravelExtraction:
     return TravelExtraction(
         hotels=_dedupe_hotels(hotels),
         flights=_dedupe_flights(flights),
+    )
+
+
+def extract_short_video(document: str) -> TravelExtraction:
+    """Lodgings and destinations from a TikTok's labelled parts.
+
+    Not chunked: a TikTok's caption, on-screen text and captions together run
+    to a few thousand characters, far inside one request.
+
+    Deliberately extracts nothing else. Asking for a page title in the same
+    structured response made the model run away inside the title string --
+    pages of repeated text -- and return no hotels at all.
+    """
+    if not document.strip():
+        return TravelExtraction()
+
+    if config.MOCK_EXTRACTION:
+        logger.warning(
+            "MOCK_EXTRACTION is on -- returning canned data, ignoring the "
+            "%d-char TikTok post. Unset it in .env for real results.",
+            len(document),
+        )
+        return TravelExtraction(hotels=list(_MOCK_HOTELS), flights=list(_MOCK_FLIGHTS))
+
+    result = _extract_chunk(document, template=_SHORT_VIDEO_TEMPLATE)
+    return TravelExtraction(
+        hotels=_dedupe_hotels(result.hotels),
+        flights=_dedupe_flights(result.flights),
     )
 
 

@@ -1,6 +1,6 @@
 # Trova — Frontend (Phase 2)
 
-Next.js App Router front end for Trova. A creator pastes a YouTube link, the
+Next.js App Router front end for Trova. A creator pastes a YouTube or TikTok link, the
 FastAPI backend builds the storefront, and the public storefront page reads it
 straight from Supabase.
 
@@ -63,6 +63,7 @@ app/
     supabase.ts              Lazy anon-key client
     storefronts.ts           Storefront queries
     youtube.ts               URL → video ID, thumbnail URL
+    video.ts                 Which platform a link is: YouTube or TikTok
     types.ts                 Mirrors the backend Pydantic models
 ```
 

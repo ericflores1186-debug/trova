@@ -28,6 +28,18 @@ class TranscriptUnavailable(AppError):
     code = "transcript_unavailable"
 
 
+class VideoUnavailable(AppError):
+    """The post is private, deleted, or the platform would not serve it.
+
+    Separate from `TranscriptUnavailable` because the fix is different: a
+    TikTok needs no captions switched on, so advice about captions would send
+    the creator looking for a setting that does not exist.
+    """
+
+    status_code = 422
+    code = "video_unavailable"
+
+
 class ExtractionFailed(AppError):
     status_code = 502
     code = "extraction_failed"

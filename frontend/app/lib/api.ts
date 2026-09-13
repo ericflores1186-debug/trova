@@ -15,7 +15,7 @@ export class StorefrontRequestError extends Error {
 export type GenerateInput = {
   videoUrl: string;
   creatorName?: string;
-  youtubeHandle?: string;
+  creatorHandle?: string;
   travelpayoutsMarker?: string;
 };
 
@@ -39,7 +39,7 @@ export async function generateStorefront(
       body: JSON.stringify({
         video_url: input.videoUrl,
         creator_name: input.creatorName || null,
-        youtube_handle: input.youtubeHandle || null,
+        creator_handle: input.creatorHandle || null,
         travelpayouts_marker: input.travelpayoutsMarker || null,
       }),
       signal,

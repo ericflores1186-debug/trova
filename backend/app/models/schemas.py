@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Literal, Optional
 
-from pydantic import BaseModel, Field
+from pydantic import AliasChoices, BaseModel, Field
 
 
 # --- Extraction ------------------------------------------------------------
@@ -74,14 +74,26 @@ class FlightWithLink(Flight):
 
 class GenerateStorefrontRequest(BaseModel):
     video_url: str = Field(
-        description="Full YouTube URL or bare 11-character video ID.",
-        examples=["https://www.youtube.com/watch?v=dQw4w9WgXcQ"],
+        description=(
+            "A YouTube URL or bare 11-character video ID, or a TikTok video URL "
+            "including vm.tiktok.com share links."
+        ),
+        examples=[
+            "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+            "https://www.tiktok.com/@creator/video/7412783059658951967",
+        ],
     )
     creator_name: Optional[str] = Field(default=None, max_length=200)
-    youtube_handle: Optional[str] = Field(
+    creator_handle: Optional[str] = Field(
         default=None,
         max_length=100,
-        description="Stable identifier for the creator, e.g. '@wanderlust'. Used to de-duplicate creators.",
+        # Sent as `youtube_handle` before TikTok support; still accepted.
+        validation_alias=AliasChoices("creator_handle", "youtube_handle"),
+        description=(
+            "Stable identifier for the creator on the video's platform, e.g. "
+            "'@wanderlust'. Used to de-duplicate creators. For TikTok, defaults "
+            "to the post's author when omitted."
+        ),
     )
     travelpayouts_marker: Optional[str] = Field(
         default=None,
@@ -126,6 +138,9 @@ class StorefrontOut(BaseModel):
     # Which Travelpayouts marker this storefront's links pay. Needed by the
     # page to assemble flight deeplinks in the browser.
     marker_used: Optional[str] = None
+    # Set for TikTok storefronts only. A YouTube thumbnail is derived from the
+    # video ID, so there is nothing to store.
+    thumbnail_url: Optional[str] = None
     affiliate_links: list[AffiliateLinkOut] = Field(default_factory=list)
     flight_links: list[FlightLinkOut] = Field(default_factory=list)
 

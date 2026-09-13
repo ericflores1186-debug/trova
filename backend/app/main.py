@@ -21,7 +21,7 @@ from app.models.schemas import (
     StorefrontOut,
     StorefrontStats,
 )
-from app.services import affiliate, destinations, extraction, storage, transcript
+from app.services import affiliate, destinations, extraction, storage, tiktok, transcript
 
 logging.basicConfig(
     level=logging.INFO,
@@ -31,7 +31,7 @@ logger = logging.getLogger(__name__)
 
 app = FastAPI(
     title="Creator Storefront API",
-    description="Turns a travel video into an affiliate hotel storefront.",
+    description="Turns a YouTube or TikTok travel video into an affiliate hotel storefront.",
     version="0.1.0",
 )
 
@@ -103,17 +103,38 @@ async def health() -> dict:
     },
 )
 async def generate_storefront(payload: GenerateStorefrontRequest) -> GenerateStorefrontResponse:
-    """Transcript -> AI extraction -> affiliate links -> Supabase."""
-    video_id = transcript.parse_video_id(payload.video_url)
-    logger.info("Generating storefront for video %s", video_id)
+    """Video text -> AI extraction -> affiliate links -> Supabase."""
+    post = None
+    if tiktok.is_tiktok_url(payload.video_url):
+        post = tiktok.fetch_post(payload.video_url)
+        logger.info("Generating storefront for TikTok post %s", post.post_id)
+        platform = "tiktok"
+        video_url = post.url
+        video_title = post.title
+        found = extraction.extract_short_video(post.extraction_document())
+        # The post names its own author, so a creator who skips the optional
+        # handle field is still credited -- and paid -- as themselves.
+        creator_handle = tiktok.normalise_handle(payload.creator_handle) or post.author_handle
+        creator_name = payload.creator_name or post.author_name
+    else:
+        video_id = transcript.parse_video_id(payload.video_url)
+        logger.info("Generating storefront for video %s", video_id)
+        platform = "youtube"
+        video_url = f"https://www.youtube.com/watch?v={video_id}"
+        video_title = transcript.fetch_video_title(video_id)
+        found = extraction.extract_travel(transcript.fetch_transcript(video_id))
+        creator_handle = payload.creator_handle
+        creator_name = payload.creator_name
 
-    video_title = transcript.fetch_video_title(video_id)
-    text = transcript.fetch_transcript(video_id)
-
-    found = extraction.extract_travel(text)
     # Flights carry the storefront when a video never names where they stayed,
     # so only a video with neither is a dead end.
     if not found.hotels and not found.flights:
+        if post:
+            raise NoHotelsFound(
+                "No hotels or destinations were named in this TikTok -- not in the "
+                "caption, the on-screen text, the tagged location or what was said. "
+                "Try one that names where they stayed."
+            )
         raise NoHotelsFound(
             "No hotels or destinations were mentioned in this video. "
             "Try a travel vlog that names where they stayed or where they went."
@@ -122,9 +143,10 @@ async def generate_storefront(payload: GenerateStorefrontRequest) -> GenerateSto
     # Resolve the creator first: their marker decides who gets paid, so the
     # links cannot be built until we know it.
     creator = storage.upsert_creator(
-        payload.creator_name,
-        payload.youtube_handle,
+        creator_name,
+        creator_handle,
         payload.travelpayouts_marker,
+        platform=platform,
     )
     creator_id = creator["id"]
     creator_marker = (creator.get("travelpayouts_marker") or "").strip()
@@ -154,12 +176,21 @@ async def generate_storefront(payload: GenerateStorefrontRequest) -> GenerateSto
     linked_hotels = affiliate.attach_booking_urls(found.hotels, marker_used)
     linked_flights = affiliate.attach_flight_urls(flights, marker_used)
 
-    video_url = f"https://www.youtube.com/watch?v={video_id}"
+    thumbnail_url = None
+    if post:
+        # TikTok's cover links expire within two days, so the image is copied
+        # rather than linked. Done only now, once the post is known to be
+        # worth a storefront.
+        cover = tiktok.download_cover(post)
+        if cover:
+            thumbnail_url = storage.upload_cover(f"tiktok/{post.post_id}", *cover)
+
     storefront_id = storage.create_storefront(
         creator_id=creator_id,
         video_url=video_url,
         video_title=video_title,
         marker_used=marker_used,
+        thumbnail_url=thumbnail_url,
     )
     links = storage.create_affiliate_links(storefront_id, linked_hotels)
     flights = storage.create_flight_links(storefront_id, linked_flights)
@@ -183,6 +214,8 @@ async def generate_storefront(payload: GenerateStorefrontRequest) -> GenerateSto
             creator_id=creator_id,
             video_url=video_url,
             video_title=video_title,
+            marker_used=marker_used,
+            thumbnail_url=thumbnail_url,
             affiliate_links=links,
             flight_links=flights,
         ),

@@ -6,23 +6,25 @@ import {
   AlertCircle,
   ArrowRight,
   Check,
+  Link2,
   Loader2,
   Sparkles,
   Youtube,
 } from "lucide-react";
 
+import { TikTokIcon } from "@/app/components/TikTokIcon";
 import { generateStorefront, StorefrontRequestError } from "@/app/lib/api";
 import { rememberStorefront } from "@/app/lib/myStorefronts";
-import { parseVideoId } from "@/app/lib/youtube";
+import { detectPlatform } from "@/app/lib/video";
 
 /**
- * The backend runs transcript -> extraction -> links -> save as one request,
+ * The backend runs video text -> extraction -> links -> save as one request,
  * so there is no server-sent progress to subscribe to. These steps advance on
  * elapsed time as an honest estimate of where the job is; the final step holds
  * until the response actually lands.
  */
 const STEPS = [
-  { label: "Pulling the transcript", after: 0 },
+  { label: "Reading the video", after: 0 },
   { label: "Finding every stay you mentioned", after: 3500 },
   { label: "Matching booking links", after: 12000 },
   { label: "Building your storefront", after: 17000 },
@@ -32,7 +34,7 @@ export function StorefrontForm() {
   const router = useRouter();
   const [videoUrl, setVideoUrl] = useState("");
   const [creatorName, setCreatorName] = useState("");
-  const [youtubeHandle, setYoutubeHandle] = useState("");
+  const [creatorHandle, setCreatorHandle] = useState("");
   const [marker, setMarker] = useState("");
   const [isPending, setIsPending] = useState(false);
   const [step, setStep] = useState(0);
@@ -55,8 +57,10 @@ export function StorefrontForm() {
   useEffect(() => () => abortRef.current?.abort(), []);
 
   const trimmedUrl = videoUrl.trim();
-  const looksValid = trimmedUrl.length > 0 && parseVideoId(trimmedUrl) !== null;
+  const platform = detectPlatform(trimmedUrl);
+  const looksValid = platform !== null;
   const showFormatHint = trimmedUrl.length > 6 && !looksValid;
+  const PlatformIcon = platform === "tiktok" ? TikTokIcon : platform === "youtube" ? Youtube : Link2;
 
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
@@ -73,7 +77,7 @@ export function StorefrontForm() {
         {
           videoUrl: trimmedUrl,
           creatorName: creatorName.trim(),
-          youtubeHandle: youtubeHandle.trim(),
+          creatorHandle: creatorHandle.trim(),
           travelpayoutsMarker: marker.trim(),
         },
         controller.signal,
@@ -100,15 +104,15 @@ export function StorefrontForm() {
         <div className="rounded-card border border-sand bg-paper-raised p-2 shadow-[0_1px_2px_rgb(25_21_18/0.04),0_12px_32px_-12px_rgb(25_21_18/0.12)]">
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
             <div className="flex flex-1 items-center gap-3 px-3 py-2">
-              <Youtube className="size-5 shrink-0 text-ink-faint" aria-hidden />
+              <PlatformIcon className="size-5 shrink-0 text-ink-faint" aria-hidden />
               <input
                 type="text"
                 inputMode="url"
                 value={videoUrl}
                 onChange={(e) => setVideoUrl(e.target.value)}
                 disabled={isPending}
-                placeholder="Paste a YouTube video link"
-                aria-label="YouTube video URL"
+                placeholder="Paste a YouTube or TikTok link"
+                aria-label="Video URL"
                 aria-invalid={showFormatHint}
                 className="w-full bg-transparent text-base text-ink outline-none placeholder:text-ink-faint disabled:opacity-60"
               />
@@ -140,8 +144,8 @@ export function StorefrontForm() {
 
         {showFormatHint && (
           <p className="px-1 text-sm text-ink-faint">
-            That doesn&apos;t look like a YouTube link yet &mdash; try
-            youtube.com/watch?v=&hellip; or youtu.be/&hellip;
+            That doesn&apos;t look like a video link yet &mdash; try
+            youtube.com/watch?v=&hellip; or tiktok.com/@name/video/&hellip;
           </p>
         )}
 
@@ -162,11 +166,11 @@ export function StorefrontForm() {
             />
             <input
               type="text"
-              value={youtubeHandle}
-              onChange={(e) => setYoutubeHandle(e.target.value)}
+              value={creatorHandle}
+              onChange={(e) => setCreatorHandle(e.target.value)}
               disabled={isPending}
               placeholder="@handle"
-              aria-label="YouTube handle"
+              aria-label="Creator handle"
               className="rounded-xl border border-sand bg-paper-raised px-4 py-2.5 text-sm text-ink outline-none transition-colors placeholder:text-ink-faint focus:border-clay disabled:opacity-60"
             />
           </div>
@@ -202,7 +206,8 @@ export function StorefrontForm() {
           </div>
 
           <p className="mt-3 text-xs text-ink-faint">
-            All optional. A handle groups every storefront you make under one creator.
+            All optional. A handle groups every storefront you make under one creator
+            &mdash; for a TikTok link, it&apos;s read from the video if you leave it blank.
           </p>
         </details>
       </form>

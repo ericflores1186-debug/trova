@@ -26,6 +26,8 @@ export type Storefront = {
   video_title: string;
   created_at: string | null;
   marker_used: string | null;
+  /** TikTok covers only; absent until backend/schema_tiktok.sql has run. */
+  thumbnail_url?: string | null;
   affiliate_links: AffiliateLink[];
   flight_links: FlightLink[];
 };
