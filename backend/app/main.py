@@ -111,7 +111,7 @@ async def generate_storefront(payload: GenerateStorefrontRequest) -> GenerateSto
         platform = "tiktok"
         video_url = post.url
         video_title = post.title
-        found = extraction.extract_short_video(post.extraction_document())
+        found = extraction.extract_short_video(post.extraction_document(), post.slides)
         # The post names its own author, so a creator who skips the optional
         # handle field is still credited -- and paid -- as themselves.
         creator_handle = tiktok.normalise_handle(payload.creator_handle) or post.author_handle
@@ -132,8 +132,8 @@ async def generate_storefront(payload: GenerateStorefrontRequest) -> GenerateSto
         if post:
             raise NoHotelsFound(
                 "No hotels or destinations were named in this TikTok -- not in the "
-                "caption, the on-screen text, the tagged location or what was said. "
-                "Try one that names where they stayed."
+                "caption, the on-screen text or slides, the tagged location, or what "
+                "was said. Try one that names where they stayed."
             )
         raise NoHotelsFound(
             "No hotels or destinations were mentioned in this video. "

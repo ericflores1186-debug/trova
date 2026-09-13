@@ -53,7 +53,7 @@ app/
   models/schemas.py      Pydantic request/response + extraction schema
   services/
     transcript.py        YouTube URL parsing, transcript fetch, oEmbed title
-    tiktok.py            TikTok post: caption, on-screen text, location, captions, cover
+    tiktok.py            TikTok post: caption, on-screen text, location, captions, slides, cover
     extraction.py        Claude structured extraction
     affiliate.py         Travelpayouts link mapping (mocked by default)
     storage.py           Supabase reads/writes

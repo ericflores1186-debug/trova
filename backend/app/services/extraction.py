@@ -8,6 +8,7 @@ scraping of code fences, no `json.loads` failures on a chatty preamble.
 
 from __future__ import annotations
 
+import base64
 import logging
 
 import anthropic
@@ -145,7 +146,14 @@ _SHORT_VIDEO_TEMPLATE = (
     "or loyalty programme on its own, such as @Marriott Bonvoy.\n"
     "- Spoken words are auto-transcribed and mishear names. When the caption or "
     "on-screen text names the same place, use that spelling.\n\n"
+    "{slides_note}"
     "{text}"
+)
+
+_SLIDES_NOTE = (
+    "This is a photo post, and its slides are attached above as images, in "
+    "order. Read the text written on each slide: slideshow creators often name "
+    "each property only there, with its location beneath it.\n\n"
 )
 
 
@@ -171,13 +179,33 @@ def _chunk(transcript: str, size: int) -> list[str]:
     return [chunk for chunk in chunks if chunk]
 
 
-def _extract_chunk(transcript: str, template: str = _USER_TEMPLATE) -> TravelExtraction:
+def _extract_chunk(
+    transcript: str,
+    template: str = _USER_TEMPLATE,
+    images: list[tuple[bytes, str]] | None = None,
+) -> TravelExtraction:
+    prompt = template.format(text=transcript)
+    content: str | list[dict] = prompt
+    if images:
+        # Images before the text that refers to them.
+        content = [
+            {
+                "type": "image",
+                "source": {
+                    "type": "base64",
+                    "media_type": media_type,
+                    "data": base64.b64encode(data).decode("ascii"),
+                },
+            }
+            for data, media_type in images
+        ] + [{"type": "text", "text": prompt}]
+
     try:
         response = _get_client().messages.parse(
             model=config.EXTRACTION_MODEL,
             max_tokens=_MAX_TOKENS,
             system=SYSTEM_PROMPT,
-            messages=[{"role": "user", "content": template.format(text=transcript)}],
+            messages=[{"role": "user", "content": content}],
             output_format=TravelExtraction,
         )
     except anthropic.NotFoundError as exc:
@@ -298,8 +326,10 @@ def extract_travel(transcript: str) -> TravelExtraction:
     )
 
 
-def extract_short_video(document: str) -> TravelExtraction:
-    """Lodgings and destinations from a TikTok's labelled parts.
+def extract_short_video(
+    document: str, slides: list[tuple[bytes, str]] | None = None
+) -> TravelExtraction:
+    """Lodgings and destinations from a TikTok's labelled parts and slides.
 
     Not chunked: a TikTok's caption, on-screen text and captions together run
     to a few thousand characters, far inside one request.
@@ -308,7 +338,7 @@ def extract_short_video(document: str) -> TravelExtraction:
     structured response made the model run away inside the title string --
     pages of repeated text -- and return no hotels at all.
     """
-    if not document.strip():
+    if not document.strip() and not slides:
         return TravelExtraction()
 
     if config.MOCK_EXTRACTION:
@@ -319,7 +349,10 @@ def extract_short_video(document: str) -> TravelExtraction:
         )
         return TravelExtraction(hotels=list(_MOCK_HOTELS), flights=list(_MOCK_FLIGHTS))
 
-    result = _extract_chunk(document, template=_SHORT_VIDEO_TEMPLATE)
+    # str.replace, not format(): the note is fixed text, and {text} must
+    # survive to be filled in by _extract_chunk.
+    template = _SHORT_VIDEO_TEMPLATE.replace("{slides_note}", _SLIDES_NOTE if slides else "")
+    result = _extract_chunk(document, template=template, images=slides)
     return TravelExtraction(
         hotels=_dedupe_hotels(result.hotels),
         flights=_dedupe_flights(result.flights),

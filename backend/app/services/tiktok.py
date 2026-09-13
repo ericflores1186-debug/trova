@@ -16,6 +16,7 @@ from __future__ import annotations
 import json
 import logging
 import re
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 from urllib.parse import urljoin, urlparse
 
@@ -63,6 +64,14 @@ _MAX_SPOKEN_CHARS = 100_000
 _MAX_COVER_BYTES = 2 * 1024 * 1024
 COVER_TYPES = ("image/jpeg", "image/png", "image/webp")
 
+# Each slide costs roughly 1,600 input tokens once the model has resized it,
+# and travels base64-encoded inside the extraction request. A hotel carousel
+# rarely runs past a dozen slides; this keeps a 35-slide post under the API's
+# request size limit.
+_MAX_SLIDES = 15
+_MAX_SLIDE_BYTES = 5 * 1024 * 1024  # the API's per-image limit
+_SLIDE_TYPES = ("image/jpeg", "image/png", "image/webp", "image/gif")
+
 _TITLE_LIMIT = 90
 
 
@@ -74,7 +83,10 @@ class PostRef:
 
     @property
     def page_url(self) -> str:
-        return f"https://www.tiktok.com/@{self.handle}/{self.kind}/{self.post_id}"
+        # Always /video/, even for a photo post. TikTok embeds the post record
+        # only in /video/ pages; a /photo/ page arrives empty and fills itself
+        # in with JavaScript, which is indistinguishable from being blocked.
+        return f"https://www.tiktok.com/@{self.handle}/video/{self.post_id}"
 
 
 @dataclass
@@ -87,6 +99,9 @@ class TikTokPost:
     on_screen_text: list[str] = field(default_factory=list)
     tagged_location: str | None = None
     spoken_words: str = ""
+    # A photo post's slides as (image bytes, content type), in order. Slideshow
+    # creators often name each hotel only in the text on its slide.
+    slides: list[tuple[bytes, str]] = field(default_factory=list)
     # Signed and short-lived: copy it before storing, never store the link.
     cover_url: str | None = None
     title: str = "TikTok video"
@@ -335,16 +350,18 @@ def fetch_post(url: str) -> TikTokPost:
         on_screen_text=_on_screen_text(item),
         tagged_location=_tagged_location(item),
         spoken_words=_spoken_words(item),
+        slides=_slides(item),
         cover_url=_cover_url(item),
         title=_title(item, handle),
     )
     logger.info(
-        "TikTok post %s: caption=%d chars, on-screen=%d, location=%s, spoken=%d chars",
+        "TikTok post %s: caption=%d chars, on-screen=%d, location=%s, spoken=%d chars, slides=%d",
         post.post_id,
         len(post.caption),
         len(post.on_screen_text),
         "yes" if post.tagged_location else "no",
         len(post.spoken_words),
+        len(post.slides),
     )
     return post
 
@@ -478,6 +495,38 @@ def _spoken_words(item: dict) -> str:
     return ""
 
 
+def _download_slide(url: str) -> tuple[bytes, str] | None:
+    response = _get_asset(url, "slide")
+    if response is None:
+        return None
+    content_type = (response.headers.get("Content-Type") or "").split(";")[0].strip().lower()
+    if content_type not in _SLIDE_TYPES or not 0 < len(response.content) <= _MAX_SLIDE_BYTES:
+        logger.warning("Skipping TikTok slide: %s, %d bytes", content_type or "no content type", len(response.content))
+        return None
+    return response.content, content_type
+
+
+def _slides(item: dict) -> list[tuple[bytes, str]]:
+    """A photo post's slide images, in order. [] for a video. Never raises."""
+    image_post = item.get("imagePost") if isinstance(item.get("imagePost"), dict) else {}
+    urls = []
+    for image in image_post.get("images") or []:
+        mirrors = ((image or {}).get("imageURL") or {}).get("urlList") or []
+        if mirrors and isinstance(mirrors[0], str) and mirrors[0].startswith("https://"):
+            urls.append(mirrors[0])
+    if len(urls) > _MAX_SLIDES:
+        logger.info("Reading the first %d of %d slides", _MAX_SLIDES, len(urls))
+        urls = urls[:_MAX_SLIDES]
+    if not urls:
+        return []
+
+    # In parallel: one at a time, a long carousel would add seconds to every
+    # request for no reason. map() keeps the slides in their original order.
+    with ThreadPoolExecutor(max_workers=6) as pool:
+        downloaded = list(pool.map(_download_slide, urls))
+    return [slide for slide in downloaded if slide]
+
+
 def _cover_url(item: dict) -> str | None:
     video = item.get("video") if isinstance(item.get("video"), dict) else {}
     for key in ("originCover", "cover"):
@@ -524,12 +573,18 @@ def _shorten(text: str, limit: int) -> str:
 
 
 def _title(item: dict, handle: str | None) -> str:
-    """A page headline in the creator's own words: the caption minus its tags.
+    """A page headline in the creator's own words.
 
-    A TikTok has no title, and its caption is often a run of @mentions and
-    hashtags. Built here rather than by the extraction model, which derailed
-    when asked to write one.
+    A photo post can have a real title. Otherwise it is the caption minus its
+    tags: a TikTok has no title, and its caption is often a run of @mentions
+    and hashtags. Built here rather than by the extraction model, which
+    derailed when asked to write one.
     """
+    image_post = item.get("imagePost") if isinstance(item.get("imagePost"), dict) else {}
+    photo_title = _collapse(image_post.get("title"))
+    if re.search(r"\w", photo_title):
+        return _shorten(photo_title, _TITLE_LIMIT)
+
     caption = _without_tags(str(item.get("desc") or ""), item.get("textExtra") or [])
     # Catch any hashtag the offsets missed.
     caption = _collapse(re.sub(r"(?<!\w)#[^\s#]+", " ", caption))

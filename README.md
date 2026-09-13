@@ -52,7 +52,8 @@ Open http://localhost:3000. Production runs at trovastays.app.
       │                                      │
       ▼                                      ▼
   youtube-transcript-api                 post page ──▶ caption, on-screen text,
-      │  transcript text                     │         tagged location, captions
+      │  transcript text                     │         tagged location, captions,
+      │                                      │         photo-post slides (images)
       └──────────────────┬───────────────────┘
                          ▼
   Claude (structured outputs) ──▶ [{ hotel_name, location }, ...]
