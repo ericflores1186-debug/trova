@@ -96,16 +96,9 @@ class GenerateStorefrontRequest(BaseModel):
             "Instagram, defaults to the post's author when omitted."
         ),
     )
-    travelpayouts_marker: Optional[str] = Field(
-        default=None,
-        max_length=32,
-        pattern=r"^\d*$",
-        description=(
-            "The creator's own Travelpayouts marker, so commission on this "
-            "storefront pays them. Digits only. Omit to keep whatever marker "
-            "the creator already has, or the platform default if they have none."
-        ),
-    )
+    # No travelpayouts_marker: a creator's own marker pays them directly and
+    # bypasses both paid plans, so it is set by hand in Supabase rather than
+    # accepted here. An old client that still sends one has it ignored.
 
 
 # --- Responses -------------------------------------------------------------

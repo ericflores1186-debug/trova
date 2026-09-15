@@ -68,9 +68,9 @@ monthly. At ten creators that is a spreadsheet and twenty minutes. Stripe
 Connect, automated ledgers and tax forms are a problem for creator #50, not
 creator #10.
 
-A creator who would rather be paid directly can still enter their own marker
-in the form; their links then carry it and Trova takes nothing. **This is now a
-free way around both the 15% and Pro** -- see "Open decision" below.
+A founding creator who would rather be paid by Travelpayouts directly can have
+their own marker set by hand -- see "Creators who bring their own marker"
+below. It is no longer in the public form.
 
 ## Pro: how it runs
 
@@ -81,7 +81,8 @@ the creator's @handle, which is how a subscription is matched to a SubID.
 
 **Fees:** 2.9% + $0.30 per card charge, plus 0.7% for Stripe Billing, no monthly
 fee. That leaves about **$14.16 of each $15** from a US card; international
-cards cost another 1.5%, and 1% more if currency is converted.
+cards cost another 1.5%, and 1% more if currency is converted. Managed Payments
+(see Tax) adds 3.5%, leaving about **$13.64**.
 
 **Cancelling:** subscribers use the Stripe customer portal link
 (`MANAGE_SUBSCRIPTION_URL`), logging in with their email. Set the portal to
@@ -103,27 +104,61 @@ all of it.
 A handle that matches no creator means a typo at checkout. Email them before
 the payout, not after.
 
-**Tax:** selling a subscription can mean collecting sales tax or VAT, depending
-on where subscribers live. Stripe Tax can calculate it ($0.50 per transaction
-where you are registered), and Stripe's Managed Payments can take the whole
-obligation on as merchant of record. Ask an accountant before subscribers
-accumulate -- this is not something to discover at tax time.
+**Tax: use Managed Payments.** Selling a subscription can mean collecting sales
+tax or VAT wherever subscribers live, and creators are international -- several
+countries tax digital services from the very first sale. With Managed Payments,
+Stripe becomes the merchant of record: it calculates, collects, files and pays
+sales tax, VAT and GST in more than 80 countries, so Trova registers nowhere.
+It costs 3.5% per transaction on top of the fees above.
+
+What changes with it:
+
+- Customers see **Link** (Stripe's consumer brand) as the seller; card
+  statements read `LINK.COM* TROVA`
+- Customers can cancel at link.com as well as through the portal link
+- Tax is added on top of the $15 by default, where it applies
+- Stripe handles disputes, and escalates payment support to the support email
+  in Stripe's business settings. **Keep that email current**: unanswered for
+  48 hours, Stripe may refund without asking
+
+Setting it up needs a **new** payment link; Managed Payments cannot be switched
+on for an existing one. Activate it in Settings -> Managed Payments, give the
+Trova Pro product the tax code "Software as a service (SaaS) - business use",
+create a new link with Enable Managed Payments ticked (and the @username field
+again), swap `PRO_CHECKOUT_URL`, then deactivate the old link.
+
+Stripe decides eligibility. If it rules Trova Pro ineligible, the fallback is
+Stripe Tax, where Trova registers and files itself.
+
+Managed Payments covers the sales tax on subscriptions only. Income tax on
+subscription and commission income is still Trova's, so an accountant is
+still worth one conversation.
 
 **When to automate:** once matching handles by hand takes more than an hour a
 month (roughly 20+ subscribers), replace the payment link with creator accounts
 and a Stripe webhook that records each creator's plan in the database.
 
-## Open decision: creators who bring their own marker
+## Creators who bring their own marker
 
-The form still lets any creator enter their own Travelpayouts marker, which
-pays them 100% directly with nothing to Trova. That was kept deliberately, as
-a trust escape hatch for creators wary of being paid by Trova. But with paid
-plans it is also a free route around both the 15% and Pro, and a creator who
-already has a Travelpayouts account will notice.
+A creator's own Travelpayouts marker pays them 100% directly, with nothing to
+Trova. It exists as a trust escape hatch for creators wary of being paid by
+Trova -- but offered to everyone, it is a free route around both the 15% and
+Pro. So it was **removed from the public form and the API**, and is set by hand
+for **founding creators only**, when they ask.
 
-Options: keep it for everyone (trust over revenue), limit it to founding and
-Pro creators, or remove it. Decide before creator #11 -- the first creator who
-is not founding is the first one it costs money on.
+Not for Pro creators: they already keep 100% through the normal payout, and a
+marker is baked into every link built while it is set. Clearing it later
+changes only new storefronts, so a Pro creator who cancelled would keep being
+paid 100% through every storefront they already share.
+
+To set one:
+
+1. Supabase -> **Table Editor** -> `creators`
+2. Find their row by `tiktok_handle`, `instagram_handle` or `youtube_handle`
+3. Put their marker (digits only) in `travelpayouts_marker`, and save
+
+It applies to storefronts built **after** the change. Storefronts they already
+share keep Trova's marker until rebuilt.
 
 ## Timing, and what to tell creators
 

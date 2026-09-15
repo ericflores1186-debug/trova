@@ -64,7 +64,6 @@ def _free_subid(client, handle: str | None, name: str | None) -> str:
 def upsert_creator(
     name: str | None,
     handle: str | None,
-    travelpayouts_marker: str | None = None,
     platform: Literal["youtube", "tiktok", "instagram"] = "youtube",
 ) -> dict:
     """Return the creator row, reusing an existing one when the handle matches.
@@ -74,15 +73,15 @@ def upsert_creator(
     people's earnings; the same person on both platforms gets two SubIDs
     instead, which only means adding two lines together at payout time.
 
-    A supplied marker updates the stored one; omitting it keeps whatever the
-    creator already had, so a later storefront does not silently stop paying
-    them just because the field was left blank.
+    The row carries `travelpayouts_marker`, but nothing here writes it. A
+    creator's own marker pays them directly and Trova nothing, which bypasses
+    both paid plans -- so it is set by hand in Supabase, for creators it has
+    been offered to (see PRICING.md), never from a public request.
     """
     client = get_client()
     handle_column = _HANDLE_COLUMNS[platform]
     handle = (handle or "").strip() or None
     display_name = (name or "").strip() or handle or "Unknown creator"
-    marker = (travelpayouts_marker or "").strip() or None
 
     try:
         if handle:
@@ -102,15 +101,6 @@ def upsert_creator(
                     ).execute()
                     row["subid"] = backfilled
                     logger.info("Backfilled subid %r for creator %s", backfilled, row["id"])
-                if marker and marker != row.get("travelpayouts_marker"):
-                    updated = (
-                        client.table("creators")
-                        .update({"travelpayouts_marker": marker})
-                        .eq("id", row["id"])
-                        .execute()
-                    )
-                    logger.info("Updated marker for creator %s", row["id"])
-                    return updated.data[0] if updated.data else {**row, "travelpayouts_marker": marker}
                 return row
 
         created = (
@@ -119,7 +109,6 @@ def upsert_creator(
                 {
                     "name": display_name,
                     handle_column: handle,
-                    "travelpayouts_marker": marker,
                     "subid": _free_subid(client, handle, display_name),
                 }
             )

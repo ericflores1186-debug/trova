@@ -73,7 +73,11 @@ never change which property is being named.
 -- "Kyoto, Japan", "Tulum, Mexico", "Amalfi Coast, Italy". If the transcript \
 never says where the property is, set it to exactly "Unknown". Do not guess \
 from the property's name.
-7. List each property once, even if it is mentioned many times.
+7. List each property once, even if it is mentioned many times. A named room, \
+suite or villa inside a hotel -- "the Hardwood Suite", "a Presidential Suite" \
+-- is part of that hotel, not a property of its own: list the hotel once, and \
+never the room. A hotel whose own name contains "Suites" (Embassy Suites) is \
+still a hotel.
 8. If the transcript mentions no named lodging at all, return an empty array. \
 An empty array is a correct and expected answer -- never pad it.
 

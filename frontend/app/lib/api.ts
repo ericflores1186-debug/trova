@@ -16,7 +16,6 @@ export type GenerateInput = {
   videoUrl: string;
   creatorName?: string;
   creatorHandle?: string;
-  travelpayoutsMarker?: string;
 };
 
 /**
@@ -40,7 +39,6 @@ export async function generateStorefront(
         video_url: input.videoUrl,
         creator_name: input.creatorName || null,
         creator_handle: input.creatorHandle || null,
-        travelpayouts_marker: input.travelpayoutsMarker || null,
       }),
       signal,
     });

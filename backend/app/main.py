@@ -167,12 +167,7 @@ async def generate_storefront(payload: GenerateStorefrontRequest) -> GenerateSto
 
     # Resolve the creator first: their marker decides who gets paid, so the
     # links cannot be built until we know it.
-    creator = storage.upsert_creator(
-        creator_name,
-        creator_handle,
-        payload.travelpayouts_marker,
-        platform=platform,
-    )
+    creator = storage.upsert_creator(creator_name, creator_handle, platform=platform)
     creator_id = creator["id"]
     creator_marker = (creator.get("travelpayouts_marker") or "").strip()
     base_marker = creator_marker or config.TRAVELPAYOUTS_MARKER
