@@ -1,6 +1,7 @@
 import { Clapperboard, Hotel, Wand2 } from "lucide-react";
 
 import { MyStorefronts } from "@/app/components/MyStorefronts";
+import { Pricing } from "@/app/components/Pricing";
 import { StorefrontForm } from "@/app/components/StorefrontForm";
 import { Wordmark } from "@/app/components/Wordmark";
 
@@ -40,7 +41,7 @@ export default function DashboardPage() {
           </span>
         </header>
 
-        <section className="rise pt-16 sm:pt-24">
+        <section id="build" className="rise scroll-mt-8 pt-16 sm:pt-24">
           <h1 className="font-display text-4xl leading-[1.1] tracking-tight text-ink sm:text-6xl">
             Every hotel you mentioned,
             <br />
@@ -84,6 +85,8 @@ export default function DashboardPage() {
             ))}
           </div>
         </section>
+
+        <Pricing />
 
         <MyStorefronts />
 

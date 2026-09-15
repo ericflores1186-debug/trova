@@ -1,12 +1,20 @@
 # Trova pricing
 
-## The rate
+## The plans
 
-**Creators keep 85%. Trova takes 15%** of affiliate commission earned through
-their storefronts.
+| Plan | Creator pays | Creator keeps |
+| --- | --- | --- |
+| **Free** | nothing | 85% -- Trova keeps 15% of commission |
+| **Pro** | $15/month | 100% |
+| **Founding** (first 10) | nothing, permanently | 100% |
+
+**Pro costs a creator less than Free once their storefronts earn $100 a month**
+(15% of $100 is $15). Below that, Free is the better deal for them, and that is
+fine: nobody pays before they have earned anything.
 
 **Founding creators keep 100%, permanently.** The first 10 creators onboarded
-pay nothing, for as long as they use Trova. Not a trial, does not expire.
+pay nothing, for as long as they use Trova. Not a trial, does not expire, and
+they never need Pro.
 
 ## How it compares
 
@@ -20,7 +28,8 @@ sale*, not a platform cut. So at 15% Trova takes **more** from creators than
 those platforms, not less.
 
 **Do not claim to have the best rate in the category.** The honest pitch is
-what the tool does and what it saves, not the percentage.
+what the tool does and what it saves, not the percentage. Pro is what lets a
+creator who earns real money keep all of it, as they would elsewhere.
 
 The real alternative a creator has is signing up with Travelpayouts directly
 and keeping 100%. What Trova offers instead:
@@ -60,7 +69,61 @@ Connect, automated ledgers and tax forms are a problem for creator #50, not
 creator #10.
 
 A creator who would rather be paid directly can still enter their own marker
-in the form; their links then carry it and Trova takes nothing.
+in the form; their links then carry it and Trova takes nothing. **This is now a
+free way around both the 15% and Pro** -- see "Open decision" below.
+
+## Pro: how it runs
+
+**Checkout is a Stripe Payment Link** -- no accounts, no code. The link is
+`PRO_CHECKOUT_URL` in `frontend/app/lib/pricing.ts`; the pricing section on the
+home page stays hidden until it is set. The link has one required text field:
+the creator's @handle, which is how a subscription is matched to a SubID.
+
+**Fees:** 2.9% + $0.30 per card charge, plus 0.7% for Stripe Billing, no monthly
+fee. That leaves about **$14.16 of each $15** from a US card; international
+cards cost another 1.5%, and 1% more if currency is converted.
+
+**Cancelling:** subscribers use the Stripe customer portal link
+(`MANAGE_SUBSCRIPTION_URL`), logging in with their email. Set the portal to
+cancel **at the end of the billing period**, so a creator who cancels keeps Pro
+for the month they paid for.
+
+**At payout time,** before paying anyone:
+
+1. Stripe -> **Billing -> Subscriptions**: list who is active, and the handle
+   each typed at checkout
+2. Match each handle to its creator's SubID (the `creators` table in Supabase)
+3. Pay Pro creators 100% of the commission from **bookings made while they were
+   subscribed**; everyone else 85%, founding creators 100%
+
+Apply Pro by **booking month, not payout month.** Otherwise a creator can
+subscribe for one month just before a large, months-old payout lands and keep
+all of it.
+
+A handle that matches no creator means a typo at checkout. Email them before
+the payout, not after.
+
+**Tax:** selling a subscription can mean collecting sales tax or VAT, depending
+on where subscribers live. Stripe Tax can calculate it ($0.50 per transaction
+where you are registered), and Stripe's Managed Payments can take the whole
+obligation on as merchant of record. Ask an accountant before subscribers
+accumulate -- this is not something to discover at tax time.
+
+**When to automate:** once matching handles by hand takes more than an hour a
+month (roughly 20+ subscribers), replace the payment link with creator accounts
+and a Stripe webhook that records each creator's plan in the database.
+
+## Open decision: creators who bring their own marker
+
+The form still lets any creator enter their own Travelpayouts marker, which
+pays them 100% directly with nothing to Trova. That was kept deliberately, as
+a trust escape hatch for creators wary of being paid by Trova. But with paid
+plans it is also a free route around both the 15% and Pro, and a creator who
+already has a Travelpayouts account will notice.
+
+Options: keep it for everyone (trust over revenue), limit it to founding and
+Pro creators, or remove it. Decide before creator #11 -- the first creator who
+is not founding is the first one it costs money on.
 
 ## Timing, and what to tell creators
 
@@ -93,9 +156,12 @@ approval wait, and nothing for them to administer.
 ## Honest caveat
 
 At these rates, 100 active creators at 15% is roughly $3,600/month. Good side
-income, not a company. If Trova needs to be bigger, the levers are a
-subscription (creators keep 100%, pay a flat monthly fee) or creators with much
-larger audiences -- not a higher take rate.
+income, not a company. Pro changes the shape rather than the ceiling: every
+creator who upgrades pays $15 instead of 15%, which is *less* for Trova whenever
+they earn over $100 a month -- the point is keeping those creators, who would
+otherwise do the maths and sign up with Travelpayouts directly. If Trova needs
+to be bigger, the lever is creators with much larger audiences, not a higher
+take rate.
 
 Revisit once real conversion data exists. The first creator's numbers are worth
 more than any of the modelling behind this document.
