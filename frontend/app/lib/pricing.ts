@@ -20,10 +20,10 @@ export const PRO_BREAK_EVEN_USD = Math.round(PRO_MONTHLY_PRICE_USD / FREE_PLAN_T
  * the checkout page itself, not a key. The pricing section stays hidden while
  * this is empty, so the site never offers a plan nobody can buy.
  */
-export const PRO_CHECKOUT_URL = "";
+export const PRO_CHECKOUT_URL = "https://buy.stripe.com/00wdR8bv5aCm9Kp3lz2Ji00";
 
 /**
  * Stripe customer portal login link (billing.stripe.com/p/login/...), where a
  * subscriber cancels or updates their card. Optional; hidden while empty.
  */
-export const MANAGE_SUBSCRIPTION_URL = "";
+export const MANAGE_SUBSCRIPTION_URL = "https://billing.stripe.com/p/login/00wdR8bv5aCm9Kp3lz2Ji00";
