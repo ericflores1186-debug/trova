@@ -172,10 +172,11 @@ async def generate_storefront(payload: GenerateStorefrontRequest) -> GenerateSto
     creator_marker = (creator.get("travelpayouts_marker") or "").strip()
     base_marker = creator_marker or config.TRAVELPAYOUTS_MARKER
 
-    # Travelpayouts pays one account per marker, so a split cannot happen at
-    # the link. Instead the marker carries a SubID naming the creator --
-    # "572600.wanderlust" -- and the Performance report breaks earnings down
-    # by it, which is what the monthly payout is calculated from.
+    # One affiliate account pays out per network, so a split cannot happen at
+    # the link. Instead every link names the creator by their SubID -- as
+    # Stay22's campaign on hotel links, and inside Travelpayouts' marker on
+    # flight links ("572600.wanderlust") -- and each network's report breaks
+    # earnings down by it, which is what the monthly payout is calculated from.
     creator_subid = (creator.get("subid") or "").strip()
     marker_used = f"{base_marker}.{creator_subid}" if creator_subid else base_marker
 
@@ -193,7 +194,7 @@ async def generate_storefront(payload: GenerateStorefrontRequest) -> GenerateSto
         found.flights, destinations.candidates_from_hotels(found.hotels)
     )
 
-    linked_hotels = affiliate.attach_booking_urls(found.hotels, marker_used)
+    linked_hotels = affiliate.attach_booking_urls(found.hotels, creator_subid or None)
     linked_flights = affiliate.attach_flight_urls(flights, marker_used)
 
     thumbnail_url = None

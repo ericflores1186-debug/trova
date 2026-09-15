@@ -44,33 +44,40 @@ Commission per booking is small, so the percentage has to carry real weight:
 
 | Product | Commission | Per booking |
 | --- | --- | --- |
-| Hotels (Hotellook) | ~3% of booking value | ~$12 on a $400 stay |
+| Hotels (Stay22) | not published -- a share of what the booking site pays | **unknown until Stay22 confirms** |
 | Flights (Aviasales) | ~1.1-1.3% of ticket | ~$7 on a $600 flight |
 
-At 15%, an active creator driving 20 hotel bookings a month earns Trova about
-**$36**. At 5% it is $12 -- less than the cost of processing a payout and
-answering one support email about it.
+The hotel figures this table used to carry (~3%, ~$12 on a $400 stay) were
+Hotellook's, and Hotellook closed on October 20, 2025. Booking sites generally
+pay 4-6% of the stay, and Stay22 keeps a share of that. Replace the row with
+real numbers once Stay22 answers or the first bookings arrive.
+
+At the old Hotellook rate, an active creator driving 20 hotel bookings a month
+earned Trova about **$36** at 15%, and $12 at 5% -- less than the cost of
+processing a payout and answering one support email about it.
 
 Take rates almost never go up. Starting at 15% and discounting is easy; the
 reverse reads as a betrayal even when it is fair.
 
 ## How the money actually moves
 
-Every booking link carries **Trova's marker plus a SubID naming the creator**
--- `marker=572600.wanderlust`. Travelpayouts pays Trova, and its
-Reports -> Performance page splits earnings by SubID. That breakdown is the
-payout sheet.
+Every booking link names the creator by their **SubID**, and each network pays
+Trova and splits its report by that name:
 
-**This is built and working.** Creators need no Travelpayouts account.
+| Links | Network | Where the creator's SubID goes | Report |
+| --- | --- | --- | --- |
+| Hotels | Stay22 (aid `trova`) | `campaign=wanderlust` | Stay22 Hub -> Performance / Transactions |
+| Flights | Travelpayouts (marker 572600) | `marker=572600.wanderlust` | Travelpayouts -> Reports |
 
-Paying creators is done **by hand**: read the SubID report, pay by PayPal
-monthly. At ten creators that is a spreadsheet and twenty minutes. Stripe
-Connect, automated ledgers and tax forms are a problem for creator #50, not
-creator #10.
+**This is built and working.** Creators need no account anywhere.
+
+Paying creators is done **by hand**: each month, read both reports, add up each
+SubID, pay by PayPal. At ten creators that is a spreadsheet and twenty minutes.
 
 A founding creator who would rather be paid by Travelpayouts directly can have
 their own marker set by hand -- see "Creators who bring their own marker"
-below. It is no longer in the public form.
+below. That now covers **flight links only**: hotel links always go through
+Trova's Stay22 account.
 
 ## Pro: how it runs
 

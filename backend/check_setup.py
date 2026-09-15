@@ -132,12 +132,12 @@ def main() -> None:
         fail(f"Anthropic call failed: {exc}", "Check your key and network")
 
     # --- 4. Travelpayouts (warn only -- the app runs fine without it) ----
-    # The marker is the only Travelpayouts setting that still changes anything.
+    # The marker only affects flight links now; hotels go through Stay22.
     # TRAVELPAYOUTS_MOCK and TRAVELPAYOUTS_API_TOKEN gated the Hotellook lookup,
-    # which was removed once that endpoint started returning 404 for everyone.
+    # which went with the Hotellook program itself.
     marker = os.getenv("TRAVELPAYOUTS_MARKER", "")
     if not marker or marker == "000000" or not marker.isdigit():
-        print(f"{WARN}TRAVELPAYOUTS_MARKER is a placeholder -- links earn no commission")
+        print(f"{WARN}TRAVELPAYOUTS_MARKER is a placeholder -- flight links earn no commission")
         print("        Get yours: travelpayouts.com -> sign up -> Profile -> your marker ID")
     else:
         print(f"{OK}Travelpayouts live, marker {marker}")

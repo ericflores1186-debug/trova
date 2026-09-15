@@ -108,21 +108,31 @@ They ship to the browser by definition, and Vercel rejects them otherwise.
 
 ---
 
-## 3. Travelpayouts credentials
+## 3. Affiliate accounts
 
-Until this is done, links work but **earn nothing** — `check_setup.py` warns
-about it, and so does the backend at boot.
+Hotels and flights are paid by two different networks.
+
+### Hotels: Stay22
+
+Hotel links are Stay22 Allez links, which land on the specific property at
+Booking.com, Expedia, Hotels.com, Agoda or Vrbo. The affiliate ID is `trova`,
+the default for `STAY22_AID`; set that variable in Render only to change it.
+Each link's `campaign` is the creator's SubID, so Stay22's reports split
+earnings by creator.
+
+(Hotels used to go through Travelpayouts' Hotellook program, which closed on
+October 20, 2025. Travelpayouts' Booking.com program, and 19 others, declined
+trovastays.app until it has three months of traffic and blog content.)
+
+### Flights: Travelpayouts
+
+Until this is done, flight links work but **earn nothing** — `check_setup.py`
+warns about it, and so does the backend at boot.
 
 1. Sign up at [travelpayouts.com](https://www.travelpayouts.com)
 2. **Profile** → copy your **marker** (a number — this is your affiliate ID)
-3. **Developers → API tokens** → create one → copy it
-4. Set `TRAVELPAYOUTS_MARKER`, `TRAVELPAYOUTS_API_TOKEN`, and
-   `TRAVELPAYOUTS_MOCK=false` in Render (and locally in `backend/.env`)
-
-With `TRAVELPAYOUTS_MOCK=false`, hotels resolve to specific Hotellook pages
-and flights to specific Aviasales routes, instead of falling back to search
-pages. Approval can take a day or two; the app keeps working on search
-fallbacks in the meantime.
+3. Set `TRAVELPAYOUTS_MARKER` in Render (and locally in `backend/.env`)
+4. **Finance** → set a payout method, or earnings have nowhere to go
 
 ---
 

@@ -1,12 +1,14 @@
-"""Travelpayouts affiliate link mapping.
+"""Affiliate link mapping.
 
-Hotels get a marker-tagged Hotellook search deeplink, which hands off to
-Booking.com carrying the affiliate label. Flights get an Aviasales pre-filled
-search form, with the destination resolved to a real IATA code.
+Hotels get a Stay22 Allez link, which sends each visitor to the specific
+property on whichever of Booking.com, Expedia, Hotels.com, Agoda or Vrbo is
+most likely to convert. Flights get an Aviasales pre-filled search form, with
+the destination resolved to a real IATA code.
 
-Both carry `marker`, which is what decides who is paid. It is always passed in
-by the caller rather than read from config, so a per-creator value cannot
-silently fall back to the platform's.
+Each link carries the creator's identity -- Stay22's `campaign` for hotels,
+the SubID inside Travelpayouts' `marker` for flights -- which is what the
+monthly payout is split by. Both are passed in by the caller rather than read
+from config, so a per-creator value cannot silently fall back to the platform's.
 """
 
 from __future__ import annotations
@@ -32,12 +34,14 @@ class LookupUnavailable(Exception):
     airport and is not a flight destination at all.
     """
 
-# Real Travelpayouts endpoints.
-SEARCH_DEEPLINK = "https://search.hotellook.com/hotels"
+# Hotels. Travelpayouts closed its Hotellook program on October 20, 2025. Its
+# links still landed on Booking.com, but the SubID was stripped on the way, so
+# no booking could be traced to a creator even if one paid. "roam" lets Stay22
+# pick the provider per visitor.
+STAY22_ALLEZ = "https://www.stay22.com/allez/roam"
 
-# Flights run through Aviasales, Travelpayouts' flight brand -- same marker as
-# hotels, no second account needed. The autocomplete endpoint resolves a city
-# name to an IATA code and needs no token.
+# Flights run through Aviasales, Travelpayouts' flight brand. The autocomplete
+# endpoint resolves a city name to an IATA code and needs no token.
 AUTOCOMPLETE_URL = "https://autocomplete.travelpayouts.com/places2"
 # The pre-filled search FORM, not "/search/" -- the results page requires
 # dates and errors outright without them, while the form lets the visitor pick
@@ -48,39 +52,36 @@ FLIGHT_FORM = "https://www.aviasales.com/"
 _HTTP_TIMEOUT = 8
 
 
-def _search_deeplink(hotel: Hotel, marker: str) -> str:
-    """Marker-tagged search deeplink. Always resolvable, never a dead link."""
-    query = f"{hotel.hotel_name} {hotel.location}".strip() if hotel.location != "Unknown" else hotel.hotel_name
-    params = {
-        "destination": query,
-        "marker": marker,
-    }
-    return f"{SEARCH_DEEPLINK}?{urlencode(params)}"
+def stay22_link(hotel_name: str, location: str | None, campaign: str | None) -> str:
+    """A Stay22 Allez link to one property, tagged with the creator's campaign.
+
+    `hotelname` names the property and `address` places it; with both, Stay22
+    lands on that hotel rather than a city search. A property whose location
+    was never stated is placed by its own name instead.
+
+    Stay22 asks that campaign IDs contain no commas or hyphens. SubIDs are
+    letters, digits and underscores only, so they qualify as they are.
+    """
+    place = (location or "").strip()
+    params = {"aid": config.STAY22_AID}
+    if campaign:
+        params["campaign"] = campaign
+    params["hotelname"] = hotel_name
+    params["address"] = place if place and place.casefold() != "unknown" else hotel_name
+    return f"{STAY22_ALLEZ}?{urlencode(params)}"
 
 
-def attach_booking_urls(hotels: list[Hotel], marker: str) -> list[HotelWithLink]:
+def attach_booking_urls(hotels: list[Hotel], campaign: str | None) -> list[HotelWithLink]:
     """Append a `booking_url` to each extracted hotel.
 
-    `marker` decides who gets paid, so it is always passed in explicitly
-    rather than read from config -- a per-creator value must never silently
-    fall back to the platform's.
-
-    There used to be a lookup here that resolved each property to a specific
-    Hotellook page via `engine.hotellook.com/api/v2/lookup.json`. That endpoint
-    now returns 404 for everyone, token or not, so the call only ever cost a
-    round trip per hotel and returned nothing.
-
-    The search deeplink is what ships instead. It is not a downgrade in
-    practice: it hands off to Booking.com carrying the affiliate label, so the
-    link works and the marker is tracked. Resolving a specific hotel page today
-    would mean the signed, two-step Hotel Search API -- worth doing only if the
-    extra click measurably costs conversions.
+    `campaign` is the creator's SubID. It decides whose earnings a booking
+    counts toward, so it is passed in explicitly rather than defaulted.
     """
     return [
         HotelWithLink(
             hotel_name=hotel.hotel_name,
             location=hotel.location,
-            booking_url=_search_deeplink(hotel, marker),
+            booking_url=stay22_link(hotel.hotel_name, hotel.location, campaign),
         )
         for hotel in hotels
     ]

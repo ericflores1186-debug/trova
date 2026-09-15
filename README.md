@@ -61,7 +61,7 @@ Open http://localhost:3000. Production runs at trovastays.app.
   Claude (structured outputs) ──▶ [{ hotel_name, location }, ...]
       │
       ▼
-  Travelpayouts ──▶ + booking_url
+  Stay22 (hotels) / Travelpayouts (flights) ──▶ + booking_url
       │
       ▼
   Supabase ──▶ storefront id ──▶ /[storefrontId]

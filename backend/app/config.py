@@ -60,7 +60,13 @@ EXTRACTION_MODEL = os.getenv("EXTRACTION_MODEL", "claude-haiku-4-5")
 # have an Anthropic key. Never leave this on in production.
 MOCK_EXTRACTION = os.getenv("MOCK_EXTRACTION", "false").lower() == "true"
 
-# --- Travelpayouts / Hotellook -------------------------------------------
+# --- Stay22 (hotels) -----------------------------------------------------
+# Hotel links go through Stay22's Allez links. The affiliate ID is public by
+# design -- it appears in every link -- so it has a default rather than being
+# a required secret.
+STAY22_AID = os.getenv("STAY22_AID", "trova")
+
+# --- Travelpayouts (flights) --------------------------------------------
 TRAVELPAYOUTS_MOCK = os.getenv("TRAVELPAYOUTS_MOCK", "true").lower() == "true"
 TRAVELPAYOUTS_API_TOKEN = os.getenv("TRAVELPAYOUTS_API_TOKEN", "placeholder-travelpayouts-token")
 
